@@ -16,14 +16,25 @@ function verifyToken($token) {
     $stmt = $pdo->prepare("SELECT * FROM fy_users WHERE access_token = ?");
     $stmt->execute([$token]);
     $userData = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$userData){
+
+    if (!$userData) {
         $status = "user_not_found";
         return $status;
-    }
-    elseif($userData && strtotime($userData['token_expiry']) > time()){
+    } elseif ($userData && strtotime($userData['token_expiry']) > time()) {
+        // 检查是否为管理员
+        $openid = $userData['openid'];
+        $stmtAdmin = $pdo->prepare("SELECT * FROM fy_admins WHERE openid = ?");
+        $stmtAdmin->execute([$openid]);
+        $adminData = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+
+        if ($adminData) {
+            $userData['is_admin'] = true;
+        } else {
+            $userData['is_admin'] = false;
+        }
+
         return $userData;
-    }
-    elseif(strtotime($userData['token_expiry']) <= time()){
+    } elseif (strtotime($userData['token_expiry']) <= time()) {
         $status = "token_expired";
         return $status;
     }

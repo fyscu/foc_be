@@ -3,8 +3,6 @@ header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 $config = include('../../config.php');
 include('../../db.php');
-require '../../utils/email.php';
-require '../../utils/sms.php';
 include('../../utils/token.php');
 include('../../utils/headercheck.php');
 include('../../utils/gets.php');
@@ -21,7 +19,6 @@ function unauthorizedResponse() {
 }
 
 // 获取请求参数
-// 这里是有一个从../../utils/token带来的参数$userinfo变量，他通过at获取了发起该请求的用户的所有信息，就不用再进行数据库io了
 $workorderId = isset($_GET['orderid']) ? (int)$_GET['orderid'] : null;
 $userId = isset($_GET['uid']) ? (int)$_GET['uid'] : null;
 $technicianId = isset($_GET['tid']) ? (int)$_GET['tid'] : null;
@@ -36,11 +33,21 @@ $requestType = '';
 
 // 构建查询和请求种类
 if ($workorderId) {
+    // 检查用户身份的条件
+    $checkQuery = "SELECT user_id, assigned_technician_id FROM fy_workorders WHERE id = ?";
+    $checkStmt = $pdo->prepare($checkQuery);
+    $checkStmt->execute([$workorderId]);
+    $workorder = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$workorder || ($userinfo['is_admin'] == false && $workorder['user_id'] != $userinfo['id'] && $workorder['assigned_technician_id'] != $userinfo['id'])) {
+        unauthorizedResponse();
+    }
+
     $query .= " AND id = ?";
     $params[] = $workorderId;
     $requestType = 'by_workorder_id';
 } elseif ($userId) {
-    if ($userinfo['role'] !== 'admin' && ($userinfo['id'] !== $userId || $userinfo['role'] !== 'user')) {
+    if ($userinfo['is_admin'] == false && ($userinfo['id'] !== $userId || $userinfo['role'] !== 'user')) {
         unauthorizedResponse();
     }
     if ($list === 'all') {
@@ -52,7 +59,7 @@ if ($workorderId) {
     }
     $params[] = $userId;
 } elseif ($technicianId) {
-    if ($userinfo['role'] !== 'admin' && ($userinfo['id'] !== $technicianId || $userinfo['role'] !== 'technician')) {
+    if ($userinfo['is_admin'] == false && ($userinfo['id'] !== $technicianId || $userinfo['role'] !== 'technician')) {
         unauthorizedResponse();
     }
     if ($list === 'all') {
@@ -64,23 +71,20 @@ if ($workorderId) {
     }
     $params[] = $technicianId;
 } else {
-    if ($userinfo['role'] !== 'admin') {
+    if ($userinfo['is_admin'] == false) {
         unauthorizedResponse();
     }
     // 现在已经是获取全部工单了，但还是要根据 list 参数过滤一下结果
     if ($list === 'done') {
         $query .= " AND repair_status = 'Done'";
-        $query .= " LIMIT $limit OFFSET $offset";
         $requestType = 'all_workorders_done';
     } elseif ($list === 'pending') {
         $query .= " AND repair_status = 'Pending'";
-        $query .= " LIMIT $limit OFFSET $offset";
         $requestType = 'all_workorders_pending';
     } else {
-        $query .= " LIMIT $limit OFFSET $offset";
         $requestType = 'all_workorders';
     }
-    
+    $query .= " LIMIT $limit OFFSET $offset";
 }
 
 $stmt = $pdo->prepare($query);

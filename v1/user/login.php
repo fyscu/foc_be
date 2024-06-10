@@ -10,7 +10,6 @@ include('../../utils/token.php');
 
 $appid = $config['wechat']['app_id'];
 $secret = $config['wechat']['app_secret'];
-$tokensalt = $config['token']['salt'];
 
 $code = $_POST['code'];
 
@@ -38,7 +37,7 @@ if (isset($responseData['openid'])) {
             'nickname' => ''
         ]);
     } else {
-        $tokenData = generateToken($responseData['openid'], $tokensalt);
+        $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
         $token = $tokenData['token'];    
         echo json_encode([
             'success' => true,

@@ -25,7 +25,7 @@ $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 // 设置默认页数限制
 $limit = 10;
 
-if ($userinfo['role'] === 'admin' || (!$campus && !$role && !$available)) {
+if ($userinfo['is_admin']) { //如果是管理员身份，就可以有更多的查询选项
     $query = "SELECT * FROM fy_users WHERE 1=1";
     $params = [];
     if ($uid) {

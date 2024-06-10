@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Registration and Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+            margin: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        .form-group button {
+            padding: 10px 15px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .form-group button:hover {
+            background-color: #0056b3;
+        }
+        .user-info {
+            margin-top: 20px;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <!--<div class="container">
+        <h2>管理员注册</h2>
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label for="openid">OpenID</label>
+                <select id="openid" name="openid" required></select>
+            </div>
+            <div class="form-group">
+                <button type="submit">Register</button>
+            </div>
+        </form>
+    </div>-->
+
+    <div class="container">
+        <h2>管理员登录</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="loginUsername">Username</label>
+                <input type="text" id="loginUsername" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" name="password" required>
+            </div>
+            <div class="form-group">
+                <button type="submit">Login</button>
+            </div>
+        </form>
+        <div class="user-info" id="userInfo"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // 获取所有 openid 并填充到 select 中
+            $.ajax({
+                url: 'https://fyapi2.wjlo.cc/v1/admin/getopenids',
+                method: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        var openidSelect = $('#openid');
+                        $.each(response.data, function(index, item) {
+                            var option = $('<option>').val(item.openid).text(item.openid);
+                            openidSelect.append(option);
+                        });
+                    } else {
+                        alert('获取openid失败');
+                    }
+                },
+                error: function() {
+                    alert('注册失败');
+                }
+            });
+
+            // 处理注册表单提交
+            $('#registerForm').submit(function(event) {
+                event.preventDefault();
+                var formData = $(this).serialize();
+                $.ajax({
+                    url: 'https://fyapi2.wjlo.cc/v1/admin/reg',
+                    method: 'POST',
+                    data: formData,
+                    success: function(response) {
+                        alert(response.message);
+                        if (response.success) {
+                            $('#registerForm')[0].reset();
+                        }
+                    },
+                    error: function() {
+                        alert('注册失败');
+                    }
+                });
+            });
+
+            // 处理登录表单提交
+            $('#loginForm').submit(function(event) {
+                event.preventDefault();
+                var formData = $(this).serialize();
+                $.ajax({
+                    url: 'https://fyapi2.wjlo.cc/v1/admin/login',
+                    method: 'POST',
+                    data: formData,
+                    success: function(response) {
+                        alert(response.message);
+                        if (response.success) {
+                            $('#loginForm')[0].reset();
+                            // 显示用户信息
+                            var userInfo = $('#userInfo');
+                            userInfo.empty();
+
+                            userInfo.append('<p>at：' + response.access_token + '</p>');
+
+                        }
+                    },
+                    error: function() {
+                        alert('登录失败');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
