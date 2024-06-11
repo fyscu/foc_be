@@ -5,8 +5,7 @@ $config = include('../../config.php');
 include('../../db.php');
 include('../../utils/gets.php');
 include('../../utils/token.php');
-
-header('Content-Type: application/json');
+include('../../utils/headercheck.php');
 
 $stmt = $pdo->prepare("SELECT openid FROM fy_users");
 $stmt->execute();

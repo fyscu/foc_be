@@ -7,10 +7,12 @@ require '../../utils/email.php';
 require '../../utils/sms.php';
 include('../../utils/gets.php');
 include('../../utils/token.php');
+
 if(!$config['info']['adminreg']){
     echo json_encode(["success" => false, "message" => "管理员注册已关闭"]);
     exit;
 }
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
