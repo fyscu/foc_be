@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-<a href="https://github.com/wjlfish/repair4_BE/pulse"><img alt="Insights" src="https://repobeats.axiom.co/api/embed/8e58e35d5a43799119e46482ce6f7f09b3f76373.svg" /></a>
+<a href="https://github.com/wjlfish/repair4_BE/pulse"><img alt="Insights" src="https://repobeats.axiom.co/api/embed/6a59781ab187479817dd1857bdfeafbf193208fb.svg" /></a>
 </p>
 
 <p align="center">
