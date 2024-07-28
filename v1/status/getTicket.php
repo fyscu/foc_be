@@ -4,7 +4,7 @@ header("Content-Type: application/json; charset=UTF-8");
 $config = include('../../config.php');
 include('../../db.php');
 include('../../utils/token.php');
-include('../../utils/headercheck.php');
+include('../../utils/headercheck.php'); //永远记得这里通过access_token给了$userinfo的全部数据
 include('../../utils/gets.php');
 
 function unauthorizedResponse() {

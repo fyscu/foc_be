@@ -9,10 +9,11 @@ include('../../utils/gets.php');
 //include('../../utils/token.php');
 //include('../../utils/headercheck.php');
 
-// 获取前端传来的数据
-$user_id = $_POST['uid'];
-$activity_id = $_POST['activity_id'];
-$free_times_json = $_POST['free_times'];
+$json = file_get_contents('php://input');
+$data = json_decode($json, true);
+$user_id = $data['uid'];
+$activity_id = $data['activity_id'];
+$free_times_json = $data['free_times'];
 
 // 解码 JSON 数据并转换为数组
 $free_times_array = json_decode($free_times_json, true);

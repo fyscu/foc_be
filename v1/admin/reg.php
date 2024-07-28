@@ -7,16 +7,17 @@ require '../../utils/email.php';
 require '../../utils/sms.php';
 include('../../utils/gets.php');
 include('../../utils/token.php');
-
+$json = file_get_contents('php://input');
+$data = json_decode($json, true);
 if(!$config['info']['adminreg']){
     echo json_encode(["success" => false, "message" => "管理员注册已关闭"]);
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
-    $openid = $_POST['openid'] ?? '';
+    $username = $data['username'] ?? '';
+    $password = $data['password'] ?? '';
+    $openid = $data['openid'] ?? '';
 
     if (empty($username) || empty($password) || empty($openid)) {
         echo json_encode(["success" => false, "message" => "缺少必要的参数"]);

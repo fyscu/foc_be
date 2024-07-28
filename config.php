@@ -2,7 +2,8 @@
 
 return [
     'info' => [
-        'domain' => 'domain'
+        'domain' => 'domain',
+        'adminreg' => true
     ],
     'token' => [
         'salt' => 'woaiwanyuanshen'

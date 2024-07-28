@@ -7,6 +7,8 @@ include('../../utils/hungarian.php');
 include('../../utils/json2xlsx.php');
 include('../../utils/gets.php');
 
+$json = file_get_contents('php://input');
+$data = json_decode($json, true);
 // 更新报名数据的分配状态
 function updateRegistration($registrationId, $assigned, $assignPosition, $assignTime) {
     global $pdo;
@@ -15,8 +17,8 @@ function updateRegistration($registrationId, $assigned, $assignPosition, $assign
 }
 
 // 从前端获取时间段（Array形式，我在文档里会写例子）
-$timeSlots = json_decode($_POST['time_slots'], true);
-$activity_id = $_POST['activity_id'];
+$timeSlots = json_decode($data['time_slots'], true);
+$activity_id = $data['activity_id'];
 
 if (!$timeSlots || !$activity_id) {
     echo json_encode(["success" => false]);

@@ -5,9 +5,11 @@ $config = include('../../config.php');
 include('../../db.php');
 include('../../utils/token.php');
 include('../../utils/headercheck.php');
-// 获取POST数据
-$phone = $_POST['phone'];
-$verification_code = $_POST['verification_code'];
+
+$json = file_get_contents('php://input');
+$data = json_decode($json, true);
+$phone = $data['phone'];
+$verification_code = $data['verification_code'];
 
 // 查询用户
 $stmt = $pdo->prepare('SELECT * FROM fy_users WHERE phone = ? AND verification_code = ?');
@@ -20,30 +22,12 @@ if ($user) {
     $stmt->execute(['verified', $phone]);
     echo json_encode([
         'status' => 'verified',
-        'success' => true,
-        'registered' => true,
-        'openid' => $user['openid'],
-        'email' => $user['email'],
-        'uid' => $user['id'],
-        'avatar' => $user['avatar'],
-        'campus' => $user['campus'],
-        'phone' => $user['phone'],
-        'role' => $user['role'],
-        'nickname' => $user['nickname']
+        'success' => true
     ]);
 } else {
     echo json_encode([
         'status' => 'verification_failed',
-        'success' => false,
-        'registered' => false,
-        'openid' => '',
-        'email' => '',
-        'uid' => '',
-        'avatar' => '',
-        'campus' => '',
-        'phone' => '',
-        'role' => '',
-        'nickname' => ''
+        'success' => false
     ]);
 }
 ?>

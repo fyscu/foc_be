@@ -7,8 +7,10 @@ include('../../utils/gets.php');
 include('../../utils/token.php');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
+    $json = file_get_contents('php://input');
+    $data = json_decode($json, true);
+    $username = $data['username'] ?? '';
+    $password = $data['password'] ?? '';
 
     if (empty($username) || empty($password)) {
         echo json_encode(["success" => false, "message" => "缺少必要的参数"]);

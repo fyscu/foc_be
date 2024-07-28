@@ -8,12 +8,14 @@ include('../../utils/headercheck.php');
 
 function regRepair() {
     global $pdo;
-    $activity_id = $_POST['activity_id'];
-    $user_id = $_POST['uid'];
-    $name = $_POST['name'];
-    $gender = $_POST['gender'];
-    $departments = implode(',', $_POST['departments']);
-    $free_times = implode(',', $_POST['free_times']);
+    $json = file_get_contents('php://input');
+    $data = json_decode($json, true);
+    $activity_id = $data['activity_id'];
+    $user_id = $data['uid'];
+    $name = $data['name'];
+    $gender = $data['gender'];
+    $departments = implode(',', $data['departments']);
+    $free_times = implode(',', $data['free_times']);
 
     // 检查活动类型
     $stmt = $pdo->prepare("SELECT type FROM fy_activities WHERE id = ?");

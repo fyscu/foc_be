@@ -7,10 +7,23 @@ require '../../utils/email.php';
 require '../../utils/sms.php';
 include('../../utils/gets.php');
 include('../../utils/token.php');
+include('../../utils/headercheck.php'); //新逻辑下这里也需要Bearer验证了
 
-// 获取POST数据
-$phone = $_POST['phone'];
-$openid = $_POST['openid'];
+$json = file_get_contents('php://input');
+$data = json_decode($json, true);
+
+// 检查 JSON 解析是否成功
+if (json_last_error() !== JSON_ERROR_NONE) {
+    echo json_encode([
+        'success' => false,
+        'status' => 'invalid_json'
+    ]);
+    exit;
+}
+
+// 获取 JSON 数据
+$phone = $data['phone'];
+//$openid = $userinfo['openid']; （../../utils/headercheck.php已经给出了$openid变量，可以直接用）
 $tokensalt = $config['token']['salt'];
 $time = date("Y-m-d H:i:s");
 
@@ -18,9 +31,9 @@ $time = date("Y-m-d H:i:s");
 $user = getUserByPhone($phone);
 
 if (!$user) {
-    // 用户不存在，插入用户数据，标记为待验证
-    $stmt = $pdo->prepare('INSERT INTO fy_users (nickname, phone, openid, role, status, regtime) VALUES (?, ?, ?, ?, ?, ?)');
-    $stmt->execute(['NULL', $phone, $openid, 'user', 'pending', $time]);
+    // 用户不存在，更新用户手机号
+    $stmt = $pdo->prepare('UPDATE fy_users SET phone = ? WHERE openid = ?');
+    $stmt->execute([$phone, $openid]);
 
     // 生成新的token
     $tokenData = generateToken($openid, $tokensalt);

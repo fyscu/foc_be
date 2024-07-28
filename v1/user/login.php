@@ -11,23 +11,33 @@ include('../../utils/token.php');
 $appid = $config['wechat']['app_id'];
 $secret = $config['wechat']['app_secret'];
 
-$code = $_POST['code'];
+$json = file_get_contents('php://input');
+$data = json_decode($json, true);
+$code = $data['code'] ?? null;
+$time = date("Y-m-d H:i:s");
 
 $url = "https://api.weixin.qq.com/sns/jscode2session?appid=$appid&secret=$secret&js_code=$code&grant_type=authorization_code";
 
 $response = file_get_contents($url);
 $responseData = json_decode($response, true);
+//echo $response;
 
 if (isset($responseData['openid'])) {
     $stmt = $pdo->prepare('SELECT * FROM fy_users WHERE openid = ?');
     $stmt->execute([$responseData['openid']]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
+     
     if (!$user) {
+        //未注册，则写到数据库里，并发一个access_token
+        $stmt = $pdo->prepare('INSERT INTO fy_users (openid, role, status) VALUES (?, ?, ?)');
+        $stmt->execute([$responseData['openid'], 'user', 'pending']);
+        $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
+        $token = $tokenData['token']; 
         echo json_encode([
             'success' => true,
             'registered' => false,
             'openid' => $responseData['openid'],
-            'access_token' => '',
+            'access_token' => $token,
             'uid' => '',
             'email' => '',
             'avatar' => '',
@@ -36,9 +46,9 @@ if (isset($responseData['openid'])) {
             'role' => '',
             'nickname' => ''
         ]);
-    } else {
+    } else {  
         $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
-        $token = $tokenData['token'];    
+        $token = $tokenData['token']; 
         echo json_encode([
             'success' => true,
             'registered' => true,

@@ -8,12 +8,14 @@ include('../../utils/headercheck.php');
 
 function createEvent() {
     global $pdo;
-    $name = $_POST['name'];
-    $type = $_POST['type'];
-    $description = $_POST['description'];
-    $start_time = $_POST['start_time'];
-    $signup_start_time = $_POST['signup_start_time'];
-    $signup_end_time = $_POST['signup_end_time'];
+    $json = file_get_contents('php://input');
+    $data = json_decode($json, true);
+    $name = $data['name'];
+    $type = $data['type'];
+    $description = $data['description'];
+    $start_time = $data['start_time'];
+    $signup_start_time = $data['signup_start_time'];
+    $signup_end_time = $data['signup_end_time'];
 
     $stmt = $pdo->prepare("INSERT INTO fy_activities (name, type, description, start_time, signup_start_time, signup_end_time) VALUES (?, ?, ?, ?, ?, ?)");
     $stmt->execute([$name, $type, $description, $start_time, $signup_start_time, $signup_end_time]);

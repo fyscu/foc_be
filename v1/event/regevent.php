@@ -8,8 +8,10 @@ include('../../utils/headercheck.php');
 
 function regEvent() {
     global $pdo;
-    $activity_id = $_POST['activity_id'];
-    $user_id = $_POST['uid'];
+    $json = file_get_contents('php://input');
+    $data = json_decode($json, true);
+    $activity_id = $data['activity_id'];
+    $user_id = $data['uid'];
 
     // 检查活动类型
     $stmt = $pdo->prepare("SELECT type FROM fy_activities WHERE id = ?");

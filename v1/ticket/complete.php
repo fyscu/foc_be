@@ -9,7 +9,9 @@ include('../../utils/token.php');
 include('../../utils/headercheck.php');
 include('../../utils/gets.php');
 
-$workOrderId = isset($_POST['order_id']) ? $_POST['order_id'] : null;
+$json = file_get_contents('php://input');
+$data = json_decode($json, true);
+$workOrderId = isset($data['order_id']) ? $data['order_id'] : null;
 
 try {
     

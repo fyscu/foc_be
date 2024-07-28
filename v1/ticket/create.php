@@ -9,18 +9,21 @@ include('../../utils/headercheck.php');
 
 function createWorkOrder() {
     global $pdo;
-    
-    $uid = $_POST['uid'];
-    $mpd = $_POST['purchase_date'];
-    $up = $_POST['phone'];
-    $dt = $_POST['device_type'];
-    $cb = $_POST['brand'];
-    $rd = $_POST['description'];
-    $ri = $_POST['image'];
-    $ft = $_POST['fault_type'];
-    $qq = $_POST['qq'];
-    $cp = $_POST['campus'];
 
+    $json = file_get_contents('php://input');
+    $data = json_decode($json, true);
+    
+    $uid = $data['uid'];
+    $mpd = $data['purchase_date'];
+    $up = $data['phone'];
+    $dt = $data['device_type'];
+    $cb = $data['brand'];
+    $rd = $data['description'];
+    $ri = $data['image'];
+    $ft = $data['fault_type'];
+    $qq = $data['qq'];
+    $cp = $data['campus'];
+    // 上面的这个变量解释应该还可以吧
     // 插入工单数据
     $stmt = $pdo->prepare("INSERT INTO fy_workorders (user_id, machine_purchase_date, user_phone, device_type, computer_brand, repair_description, repair_status, repair_image_url, fault_type, qq_number, campus) VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?)");
     $stmt->execute([$uid,$mpd,$up,$dt,$cb,$rd,$ri,$ft,$qq,$cp]);

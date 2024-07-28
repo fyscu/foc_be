@@ -7,7 +7,9 @@ include('../../utils/token.php');
 include('../../utils/headercheck.php');
 include('../../utils/gets.php');
 
-$openid = $_POST['openid'];
+$json = file_get_contents('php://input');
+$data = json_decode($json, true);
+//$openid = $data['openid']; （../../utils/headercheck.php已经给出了$openid变量，可以直接用）
 
 $user = getUserByOpenid($openid);
 

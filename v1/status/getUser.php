@@ -6,12 +6,11 @@ include('../../db.php');
 require '../../utils/email.php';
 require '../../utils/sms.php';
 include('../../utils/token.php');
-include('../../utils/headercheck.php');
+include('../../utils/headercheck.php'); //永远记得这里通过access_token给了$userinfo的全部数据
 include('../../utils/gets.php');
 
 
 // 获取请求参数
-// 这里是有一个从../../utils/token带来的参数$userinfo变量，他通过at获取了发起该请求的用户的所有信息，就不用再进行数据库io了
 $uid = isset($_GET['uid']) ? (int)$_GET['uid'] : null;
 $openid = isset($_GET['openid']) ? $_GET['openid'] : null;
 $access_token = isset($_GET['access_token']) ? $_GET['access_token'] : null;

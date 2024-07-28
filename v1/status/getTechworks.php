@@ -6,7 +6,7 @@ include('../../db.php');
 require '../../utils/email.php';
 require '../../utils/sms.php';
 include('../../utils/token.php');
-include('../../utils/headercheck.php');
+include('../../utils/headercheck.php'); //永远记得这里通过access_token给了$userinfo的全部数据
 include('../../utils/gets.php');
 
 $tid = isset($_GET['tid']) ? intval($_GET['tid']) : null;
