@@ -4,12 +4,12 @@ header("Content-Type: application/json; charset=UTF-8");
 $config = include('../../config.php');
 include('../../db.php');
 include('../../utils/token.php');
-include('../../utils/headercheck.php');
+//include('../../utils/headercheck.php');
 
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 $phone = $data['phone'];
-$verification_code = $data['verification_code'];
+$verification_code = $data['code'];
 
 // 查询用户
 $stmt = $pdo->prepare('SELECT * FROM fy_users WHERE phone = ? AND verification_code = ?');
@@ -21,13 +21,13 @@ if ($user) {
     $stmt = $pdo->prepare('UPDATE fy_users SET status = ? WHERE phone = ?');
     $stmt->execute(['verified', $phone]);
     echo json_encode([
-        'status' => 'verified',
-        'success' => true
+        'success' => true,
+        'status' => 'verified'
     ]);
 } else {
     echo json_encode([
-        'status' => 'verification_failed',
-        'success' => false
+        'success' => false,
+        'status' => 'user_not_exists'
     ]);
 }
 ?>

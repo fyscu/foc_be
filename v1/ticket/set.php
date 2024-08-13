@@ -10,19 +10,19 @@ include('../../utils/gets.php');
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
-// 如果没有传入id，使用当前用户的openid
-$target_openid = isset($data['id']) ? $data['id'] : $userinfo['openid'];
-$target_user = getUserByOpenid($target_openid);
+$ticket_id = $data['tid'];
+$ticket = getTicketById($ticket_id);
 
 $response = [];
 
-if ($target_user) {
+if ($ticket) {
     $has_permission = false;
 
-    // 检查是否为管理员或本人
     if ($userinfo['is_admin']) {
         $has_permission = true;
-    } elseif ($userinfo['openid'] === $target_openid) {
+    } elseif ($userinfo['id'] === $ticket['user_id']) {
+        $has_permission = true;
+    } elseif ($userinfo['role'] === 'technician' && $userinfo['id'] === $ticket['assigned_technician_id']) {
         $has_permission = true;
     }
 
@@ -32,8 +32,8 @@ if ($target_user) {
         $changedFields = [];
 
         foreach ($data as $key => $value) {
-            if (!empty($value) && $key != 'id' && isset($target_user[$key])) {
-                if ($target_user[$key] != $value) {
+            if (!empty($value) && $key != 'id' && isset($ticket[$key])) {
+                if ($ticket[$key] != $value) {
                     $updateFields[] = "$key = :$key";
                     $updateValues[":$key"] = $value;
                     $changedFields[$key] = $value;
@@ -42,8 +42,8 @@ if ($target_user) {
         }
 
         if (count($updateFields) > 0) {
-            $updateSql = "UPDATE fy_users SET " . implode(", ", $updateFields) . " WHERE openid = :id";
-            $updateValues[':id'] = $target_openid;
+            $updateSql = "UPDATE tickets SET " . implode(", ", $updateFields) . " WHERE id = :id";
+            $updateValues[':id'] = $ticket_id;
 
             $stmt = $pdo->prepare($updateSql);
             $stmt->execute($updateValues);
@@ -68,7 +68,7 @@ if ($target_user) {
 } else {
     $response = [
         'success' => false,
-        'message' => 'User not found',
+        'message' => 'Ticket not found',
         'changedFields' => []
     ];
 }

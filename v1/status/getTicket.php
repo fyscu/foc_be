@@ -46,8 +46,13 @@ if ($workorderId) {
     $query .= " AND id = ?";
     $params[] = $workorderId;
     $requestType = 'by_workorder_id';
+
 } elseif ($userId) {
-    if ($userinfo['is_admin'] == false && ($userinfo['id'] !== $userId || $userinfo['role'] !== 'user')) {
+    // 打印调试信息
+    error_log("userinfo id: " . $userinfo['id'] . " userId: " . $userId);
+
+    // 修正了类型比较
+    if ($userinfo['is_admin'] == false && ((int)$userinfo['id'] !== $userId || $userinfo['role'] !== 'user')) {
         unauthorizedResponse();
     }
     if ($list === 'all') {
@@ -58,8 +63,9 @@ if ($workorderId) {
         $requestType = 'by_user_id_pending';
     }
     $params[] = $userId;
+
 } elseif ($technicianId) {
-    if ($userinfo['is_admin'] == false && ($userinfo['id'] !== $technicianId || $userinfo['role'] !== 'technician')) {
+    if ($userinfo['is_admin'] == false && ((int)$userinfo['id'] !== $technicianId || $userinfo['role'] !== 'technician')) {
         unauthorizedResponse();
     }
     if ($list === 'all') {
@@ -70,6 +76,7 @@ if ($workorderId) {
         $requestType = 'by_technician_id_pending';
     }
     $params[] = $technicianId;
+
 } else {
     if ($userinfo['is_admin'] == false) {
         unauthorizedResponse();
@@ -95,8 +102,8 @@ $workorders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 echo json_encode([
     "success" => true,
     "requesttype" => $requestType,
-    "data" => $workorders,
+    "data" => $workorders ?: [],  //如果这人没工单就返回[]
     'page' => $page,
     'limit' => $limit
-]);  
+]);
 ?>
