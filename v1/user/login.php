@@ -46,22 +46,41 @@ if (isset($responseData['openid'])) {
             'role' => '',
             'nickname' => ''
         ]);
-    } else {  
-        $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
-        $token = $tokenData['token']; 
-        echo json_encode([
-            'success' => true,
-            'registered' => true,
-            'openid' => $responseData['openid'],
-            'access_token' => $token,
-            'uid' => $user['id'],
-            'email' => $user['email'],
-            'avatar' => $user['avatar'],
-            'campus' => $user['campus'],
-            'phone' => $user['phone'],
-            'role' => $user['role'],
-            'nickname' => $user['nickname']
-        ]);
+    } else {
+        // 判断用户status，为pending时和未注册的逻辑一样
+        if ($user['status'] === 'pending') {
+            $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
+            $token = $tokenData['token']; 
+            echo json_encode([
+                'success' => true,
+                'registered' => false,
+                'openid' => $responseData['openid'],
+                'access_token' => $token,
+                'uid' => '',
+                'email' => '',
+                'avatar' => '',
+                'campus' => '',
+                'phone' => '',
+                'role' => '',
+                'nickname' => ''
+            ]);
+        } else {
+            $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
+            $token = $tokenData['token']; 
+            echo json_encode([
+                'success' => true,
+                'registered' => true,
+                'openid' => $responseData['openid'],
+                'access_token' => $token,
+                'uid' => $user['id'],
+                'email' => $user['email'],
+                'avatar' => $user['avatar'],
+                'campus' => $user['campus'],
+                'phone' => $user['phone'],
+                'role' => $user['role'],
+                'nickname' => $user['nickname']
+            ]);
+        }        
     }
     
 } else {
