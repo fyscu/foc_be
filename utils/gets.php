@@ -63,6 +63,13 @@ function getTicketByStatus($status) {//pending or done
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
+function getQuestionById($qid) {
+    global $pdo;
+    $stmt = $pdo->prepare("SELECT * FROM fy_info WHERE id = ?");
+    $stmt->execute([$qid]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
 function getAll($query,$table,$type) {//使用此函数需要对本项目数据库结构极其熟悉
     global $pdo;  
     $stmt = $pdo->prepare("SELECT * FROM $table WHERE $type = ?");

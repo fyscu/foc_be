@@ -9,15 +9,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0); // 提前结束响应，处理 OPTIONS 预检请求
 }
 
-$config = include('../../config.php');
-include('../../db.php');
-include('../../utils/gets.php');
-include('../../utils/token.php');
-include('../../utils/headercheck.php');
+if(isset($_GET['version'])){
+    if($_GET['version'] === "1.0.9"){
+        echo json_encode([
+            "success" => true,
+            "status" => 1
+            
+        ]);
+        exit;
+    }
+}
 
-$stmt = $pdo->prepare("SELECT openid FROM fy_users");
-$stmt->execute();
-$openids = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-echo json_encode(["success" => true, "data" => $openids]);
+echo json_encode([
+    "success" => true,
+    "status" => 0
+]);
 ?>

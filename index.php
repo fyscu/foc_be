@@ -1,3 +1,4 @@
 <?php
-echo "1";
+header('Location: https://lab.feiyang.ac.cn/');
+exit();
 ?>

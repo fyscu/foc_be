@@ -1,6 +1,13 @@
 <?php
 header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
 header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Max-Age: 86400");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0); // 提前结束响应，处理 OPTIONS 预检请求
+}
 $config = include('../../config.php');
 include('../../db.php');
 include('../../utils/token.php');
@@ -22,6 +29,7 @@ if ($user) {
     $stmt->execute(['verified', $phone]);
     echo json_encode([
         'success' => true,
+        'phone' => $phone,
         'status' => 'verified'
     ]);
 } else {

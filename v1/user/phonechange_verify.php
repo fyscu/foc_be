@@ -11,13 +11,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 $config = include('../../config.php');
 include('../../db.php');
+require '../../utils/email.php';
 include('../../utils/gets.php');
 include('../../utils/token.php');
-include('../../utils/headercheck.php');
+include('../../utils/headercheck.php'); 
+require '../../utils/phone_change.php';
 
-$stmt = $pdo->prepare("SELECT openid FROM fy_users");
-$stmt->execute();
-$openids = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$json = file_get_contents('php://input');
+$data = json_decode($json, true);
 
-echo json_encode(["success" => true, "data" => $openids]);
+$inputCode = $data['vcode'];
+$result = verifyPhoneChange($userinfo, $inputCode);
+
+if ($result['status'] === 'phone_updated') {
+    echo json_encode(['status' => 'success', 'message' => 'phone_updated']);
+} elseif ($result['status'] === 'verification_failed') {
+    echo json_encode(['status' => 'error', 'message' => 'bad_code']);
+}
 ?>

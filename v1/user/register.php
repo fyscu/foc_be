@@ -1,18 +1,25 @@
 <?php
 header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
 header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Max-Age: 86400");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0); // 提前结束响应，处理 OPTIONS 预检请求
+}
+
 $config = include('../../config.php');
 include('../../db.php');
 require '../../utils/email.php';
 require '../../utils/sms.php';
 include('../../utils/gets.php');
 include('../../utils/token.php');
-include('../../utils/headercheck.php'); //新逻辑下这里也需要Bearer验证了
+include('../../utils/headercheck.php'); 
 
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
-// 检查 JSON 解析是否成功
 if (json_last_error() !== JSON_ERROR_NONE) {
     echo json_encode([
         'success' => false,
@@ -21,9 +28,7 @@ if (json_last_error() !== JSON_ERROR_NONE) {
     exit;
 }
 
-// 获取 JSON 数据
 $phone = $data['phone'];
-//$openid = $userinfo['openid']; （../../utils/headercheck.php已经给出了$openid变量，可以直接用）
 $tokensalt = $config['token']['salt'];
 $time = date("Y-m-d H:i:s");
 
@@ -31,53 +36,100 @@ $time = date("Y-m-d H:i:s");
 $user = getUserByPhone($phone);
 
 if (!$user) {
-    // 用户不存在，更新用户手机号
-    $stmt = $pdo->prepare('UPDATE fy_users SET phone = ? WHERE openid = ?');
-    $stmt->execute([$phone, $openid]);
+    // 用户不存在，更新当前用户的手机号和注册时间
+    $verification_code = rand(100000, 999999);
+    $stmt = $pdo->prepare('UPDATE fy_users SET phone = ?, regtime = ?, verification_code = ? WHERE openid = ?');
+    $stmt->execute([$phone, $time, $verification_code, $openid]);
 
-    // 生成新的token
+    // 生成新的 token
     $tokenData = generateToken($openid, $tokensalt);
     $token = $tokenData['token'];
-} else {
-    // 用户存在，检查状态
-    if ($user['status'] == 'verified') {
+
+    // 发送短信验证码
+    $sms = new Sms($config);
+    $templateKey = 'registration'; 
+    $phoneNumber = $phone; 
+    $templateParams = [$verification_code];
+    $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
+
+    if ($response) {
         echo json_encode([
             'success' => true,
-            'status' => 'user_exists_verified'
+            'status' => 'verification_code_sent',
+            'access_token' => $token
         ]);
         exit;
     } else {
-        // 用户存在但未验证，生成新的token
+        echo json_encode([
+            'success' => false,
+            'status' => 'sms_failed'
+        ]);
+        exit;
+    }
+    
+} else {
+    if ($user['immed'] == '0') {
+        // 需要迁移的用户，生成并发送验证码
         $tokenData = generateToken($openid, $tokensalt);
         $token = $tokenData['token'];
+        $verification_code = rand(100000, 999999);
+        $stmt = $pdo->prepare('UPDATE fy_users SET verification_code = ? WHERE phone = ?');
+        $stmt->execute([$verification_code, $phone]);
+
+        $sms = new Sms($config);
+        $templateKey = 'migration'; 
+        $phoneNumber = $phone; 
+        $templateParams = [$verification_code];
+        $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
+
+        if ($response) {
+            echo json_encode([
+                'success' => true,
+                'status' => 'user_need_migration',
+                'access_token' => $token
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'status' => 'sms_failed'
+            ]);
+        }
+    } else {
+        // 用户已存在并且已验证
+        if ($user['status'] == 'verified') {
+            echo json_encode([
+                'success' => true,
+                'status' => 'user_exists_verified'
+            ]);
+            exit;
+        } else {
+            // 用户存在但未验证，生成新的 token 和验证码
+            $tokenData = generateToken($openid, $tokensalt);
+            $token = $tokenData['token'];
+
+            $verification_code = rand(100000, 999999);
+            $stmt = $pdo->prepare('UPDATE fy_users SET verification_code = ? WHERE phone = ?');
+            $stmt->execute([$verification_code, $phone]);
+
+            $sms = new Sms($config);
+            $templateKey = 'registration'; 
+            $phoneNumber = $phone; 
+            $templateParams = [$verification_code];
+            $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
+
+            if ($response) {
+                echo json_encode([
+                    'success' => true,
+                    'status' => 'verification_code_sent',
+                    'access_token' => $token
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => false,
+                    'status' => 'sms_failed'
+                ]);
+            }
+        }
     }
-}
-
-// 生成新的验证码
-$verification_code = rand(100000, 999999);
-
-// 更新验证码
-$stmt = $pdo->prepare('UPDATE fy_users SET verification_code = ? WHERE phone = ?');
-$stmt->execute([$verification_code, $phone]);
-
-// 发送短信验证码
-$sms = new Sms($config);
-$templateKey = 'registration'; // 选择模板
-$phoneNumber = $phone; // 接收短信的手机号
-$templateParams = [$verification_code]; // 模板参数
-
-$response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
-
-if ($response) {
-    echo json_encode([
-        'success' => true,
-        'status' => 'verification_code_sent',
-        'access_token' => $token
-    ]);
-} else {
-    echo json_encode([
-        'success' => false,
-        'status' => 'sms_failed'
-    ]);
 }
 ?>

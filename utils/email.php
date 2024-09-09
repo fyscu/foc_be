@@ -23,6 +23,7 @@ class Email {
             $mail->Username = $this->emailConfig['username']; // SMTP 用户名
             $mail->Password = $this->emailConfig['password']; // SMTP 密码
             $mail->SMTPSecure = 'ssl';
+            $mail->CharSet = "UTF-8";
             $mail->Port = $this->emailConfig['smtp_port'];
 
             // 发件人
@@ -32,11 +33,13 @@ class Email {
             // 内容
             $mail->isHTML(true);
             $mail->Subject = $subject;
-            $mail->Body    = $body;
+            $mail->Body = $body;
 
+            // 发送邮件
             $mail->send();
+            return true; // 发送成功
         } catch (Exception $e) {
-            echo "邮件发送失败: {$mail->ErrorInfo}";
+            return false; // 发送失败
         }
     }
 }

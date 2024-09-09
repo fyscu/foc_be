@@ -1,6 +1,13 @@
 <?php
 header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
 header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Max-Age: 86400");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0); // 提前结束响应，处理 OPTIONS 预检请求
+}
 $config = include('../../config.php');
 include('../../db.php');
 include('../../utils/token.php');
@@ -23,8 +30,8 @@ $workorderId = isset($_GET['orderid']) ? (int)$_GET['orderid'] : null;
 $userId = isset($_GET['uid']) ? (int)$_GET['uid'] : null;
 $technicianId = isset($_GET['tid']) ? (int)$_GET['tid'] : null;
 $list = isset($_GET['list']) ? $_GET['list'] : null;
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10; 
+$page = isset($_GET['page']) ? (int)$_GET['page'] : null;
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : null; 
 $offset = ($page - 1) * $limit;
 
 $query = "SELECT * FROM fy_workorders WHERE 1=1";
@@ -55,12 +62,12 @@ if ($workorderId) {
     if ($userinfo['is_admin'] == false && ((int)$userinfo['id'] !== $userId || $userinfo['role'] !== 'user')) {
         unauthorizedResponse();
     }
-    if ($list === 'all') {
-        $query .= " AND user_id = ?";
-        $requestType = 'by_user_id_all';
-    } else {
+    if ($list === 'pending') {
         $query .= " AND user_id = ? AND repair_status = 'Pending'";
         $requestType = 'by_user_id_pending';
+    } else {       
+        $query .= " AND user_id = ?";
+        $requestType = 'by_user_id_all';
     }
     $params[] = $userId;
 
@@ -69,11 +76,11 @@ if ($workorderId) {
         unauthorizedResponse();
     }
     if ($list === 'all') {
+        $query .= " AND assigned_technician_id = ? AND repair_status = 'Repairing'";
+        $requestType = 'by_technician_id_pending';
+    } else {
         $query .= " AND assigned_technician_id = ?";
         $requestType = 'by_technician_id_all';
-    } else {
-        $query .= " AND assigned_technician_id = ? AND repair_status = 'Pending'";
-        $requestType = 'by_technician_id_pending';
     }
     $params[] = $technicianId;
 

@@ -2,7 +2,14 @@
 // login.php
 
 header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
 header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Max-Age: 86400");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0); // 提前结束响应，处理 OPTIONS 预检请求
+}
 
 $config = include('../../config.php');
 include('../../db.php');
@@ -21,7 +28,7 @@ $url = "https://api.weixin.qq.com/sns/jscode2session?appid=$appid&secret=$secret
 $response = file_get_contents($url);
 $responseData = json_decode($response, true);
 //echo $response;
-
+// $responseData['openid'] = "11456"; 测试用openid
 if (isset($responseData['openid'])) {
     $stmt = $pdo->prepare('SELECT * FROM fy_users WHERE openid = ?');
     $stmt->execute([$responseData['openid']]);
@@ -41,6 +48,7 @@ if (isset($responseData['openid'])) {
             'uid' => '',
             'email' => '',
             'avatar' => '',
+            'available' => '',
             'campus' => '',
             'phone' => '',
             'role' => '',
@@ -59,6 +67,7 @@ if (isset($responseData['openid'])) {
                 'uid' => '',
                 'email' => '',
                 'avatar' => '',
+                'available' => '',
                 'campus' => '',
                 'phone' => '',
                 'role' => '',
@@ -67,6 +76,7 @@ if (isset($responseData['openid'])) {
         } else {
             $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
             $token = $tokenData['token']; 
+            $user['available'] = $user['available'] == 1 ? true : false;
             echo json_encode([
                 'success' => true,
                 'registered' => true,
@@ -75,6 +85,7 @@ if (isset($responseData['openid'])) {
                 'uid' => $user['id'],
                 'email' => $user['email'],
                 'avatar' => $user['avatar'],
+                'available' => $user['available'],
                 'campus' => $user['campus'],
                 'phone' => $user['phone'],
                 'role' => $user['role'],

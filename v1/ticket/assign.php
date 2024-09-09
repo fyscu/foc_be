@@ -10,7 +10,7 @@ function assignWorkOrders() {
     global $pdo;
 
     // 获取所有未分配的工单
-    $stmt = $pdo->query("SELECT * FROM fy_workorders WHERE assigned_technician_id IS NULL");
+    $stmt = $pdo->query("SELECT * FROM fy_workorders WHERE repair_status = 'Pending'");
     $workOrders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // 获取所有空闲的技术员
@@ -36,8 +36,8 @@ function assignWorkOrders() {
         $assignedTime = date('Y-m-d H:i:s');
 
         // 更新工单信息并标记技术员不可用
-        $stmt = $pdo->prepare("UPDATE fy_workorders SET assigned_technician_id = ?, assigned_time = ? WHERE id = ?");
-        $stmt->execute([$technician['id'], $assignedTime, $workOrder['id']]);
+        $stmt = $pdo->prepare("UPDATE fy_workorders SET assigned_technician_id = ?, assigned_time = ?, repair_status = ? WHERE id = ?");
+        $stmt->execute([$technician['id'], $assignedTime, "Repairing", $workOrder['id']]);
         $stmt = $pdo->prepare("UPDATE fy_users SET available = 0 WHERE id = ?");
         $stmt->execute([$technician['id']]);
 
@@ -56,14 +56,14 @@ function assignWorkOrders() {
         // 发送给技术员
         $templateKey = 'assign_to_technician'; // 选择模板
         $phoneNumber = $technician['phone']; // 接收短信的手机号
-        $templateParams = [$workOrder['id']]; // 模板参数
+        $templateParams = [$technician['nickname'],$user['nickname'],$workOrder['user_phone']]; // 模板参数
         $sms->sendSms($templateKey, $phoneNumber, $templateParams);
         $notification->sendEmail($technician['email'], "新的报修工单", "您有一个新的报修工单，工单编号：{$workOrder['id']}。");
 
         // 发送给用户
         $templateKey = 'assign_to_user'; // 选择模板
         $phoneNumber = $user['phone']; // 接收短信的手机号
-        $templateParams = [$workOrder['id']]; // 模板参数
+        $templateParams = [$user['nickname'],$technician['nickname'],$technician['phone']]; // 模板参数
         $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
         $notification->sendEmail($user['email'], "报修工单已分配", "您的报修工单已分配给技术员，技术员编号：{$technician['id']}。");
         if($response){

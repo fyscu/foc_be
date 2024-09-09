@@ -1,6 +1,13 @@
 <?php
 header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
 header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Max-Age: 86400");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0); // 提前结束响应，处理 OPTIONS 预检请求
+}
 $config = include('../../config.php');
 include('../../db.php');
 require '../../utils/email.php';
@@ -20,9 +27,9 @@ $campus = isset($_GET['campus']) ? $_GET['campus'] : null;
 $role = isset($_GET['role']) ? $_GET['role'] : null;
 $available = isset($_GET['available']) ? $_GET['available'] : null;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
 // 设置默认页数限制
-$limit = 10;
+// $limit = 100;
 
 if ($userinfo['is_admin']) { //如果是管理员身份，就可以有更多的查询选项
     $query = "SELECT * FROM fy_users WHERE 1=1";
@@ -57,9 +64,9 @@ if ($userinfo['is_admin']) { //如果是管理员身份，就可以有更多的�
         $params[] = $role;
     }
 
-    if ($available) {
+    if ($available !== null) {  // 杜绝php把0认为false的傻逼逻辑
         $query .= " AND available = ?";
-        $params[] = $available;
+        $params[] = (int)$available;
     }
     $start = ($page - 1) * $limit;
     $query .= " LIMIT $limit OFFSET $start";

@@ -1,6 +1,13 @@
 <?php
 header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
 header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Max-Age: 86400");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0); // 提前结束响应，处理 OPTIONS 预检请求
+}
 
 include('../../db.php');
 include('../../utils/hungarian.php');
@@ -17,7 +24,8 @@ function updateRegistration($registrationId, $assigned, $assignPosition, $assign
 }
 
 // 从前端获取时间段（Array形式，我在文档里会写例子）
-$timeSlots = json_decode($data['time_slots'], true);
+// $timeSlots = json_decode($data['time_slots'], true);
+$timeSlots = $data['time_slots'];
 $activity_id = $data['activity_id'];
 
 if (!$timeSlots || !$activity_id) {

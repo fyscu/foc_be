@@ -17,21 +17,17 @@ include('../../utils/gets.php');
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
-$target_openid = $openid;
-$target_user = $userinfo;
+$question_id = $data['qid'];
+$question = getQuestionById($question_id);
+
 $response = [];
 
-if (isset($data['available'])) {
-    $data['available'] = $data['available'] === true ? 1 : 0;
-}
-
-if ($target_user) {
+if ($question) {
     $has_permission = false;
 
-    // 检查是否为管理员或本人
     if ($userinfo['is_admin']) {
         $has_permission = true;
-    } elseif ($userinfo['openid'] === $target_openid) {
+    } elseif ($userinfo['id'] === $question['user_id']) {
         $has_permission = true;
     }
 
@@ -41,8 +37,8 @@ if ($target_user) {
         $changedFields = [];
 
         foreach ($data as $key => $value) {
-            if ($value !== null && $key != 'id' && array_key_exists($key, $target_user)) {
-                if ($target_user[$key] != $value) {
+            if (!empty($value) && $key != 'id' && isset($question[$key])) {
+                if ($question[$key] != $value) {
                     $updateFields[] = "$key = :$key";
                     $updateValues[":$key"] = $value;
                     $changedFields[$key] = $value;
@@ -51,8 +47,8 @@ if ($target_user) {
         }
 
         if (count($updateFields) > 0) {
-            $updateSql = "UPDATE fy_users SET " . implode(", ", $updateFields) . " WHERE openid = :id";
-            $updateValues[':id'] = $target_openid;
+            $updateSql = "UPDATE fy_info SET " . implode(", ", $updateFields) . " WHERE id = :id";
+            $updateValues[':id'] = $question_id;
 
             $stmt = $pdo->prepare($updateSql);
             $stmt->execute($updateValues);
@@ -77,7 +73,7 @@ if ($target_user) {
 } else {
     $response = [
         'success' => false,
-        'message' => 'User not found',
+        'message' => 'Question not found',
         'changedFields' => []
     ];
 }
