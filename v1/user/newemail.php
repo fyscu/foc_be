@@ -29,9 +29,9 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 
 $email = $data['email'];
 $tokensalt = $config['token']['salt'];
+$appdomain = $config['info']['appdomain'];
 $time = date("Y-m-d H:i:s");
 
-// 检查邮箱格式是否有效
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     echo json_encode([
         'success' => false,
@@ -40,10 +40,22 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     exit;
 }
 
+// 检查是否与当前邮箱相同
 if($email == $userinfo['email']){
     echo json_encode([
         'success' => false,
         'status' => 'same_email'
+    ]);
+    exit;
+}
+
+// 检查邮箱是否已经被其他用户使用
+$stmt = $pdo->prepare('SELECT id FROM fy_users WHERE email = ?');
+$stmt->execute([$email]);
+if ($stmt->rowCount() > 0) {
+    echo json_encode([
+        'success' => false,
+        'status' => 'email_already_in_use'
     ]);
     exit;
 }
@@ -52,12 +64,12 @@ if($email == $userinfo['email']){
 $emailToken = hash('sha256', $email . $tokensalt . time());
 
 // 将邮箱暂存到缓冲区，等待验证通过
-$stmt = $pdo->prepare('UPDATE fy_users SET temp_email = ?, email_token = ? WHERE openid = ?');
+$stmt = $pdo->prepare('UPDATE fy_users SET temp_email = ?, email_status = ? WHERE openid = ?');
 $stmt->execute([$email, $emailToken, $openid]);
 
 // 发送验证邮件
 $emailSender = new Email($config);
-$verificationLink = "https://focapp.feiyang.ac.cn/public/verify_email?token=$emailToken";
+$verificationLink = $appdomain."/public/verify_email?token=$emailToken";
 $subject = "请验证您的邮箱";
 $body = "请点击以下链接验证您的邮箱：<a href='$verificationLink'>$verificationLink</a>";
 $sent = $emailSender->sendEmail($email, $subject, $body);

@@ -21,16 +21,19 @@ function verifyToken($token) {
         $status = "user_not_found";
         return $status;
     } elseif ($userData && strtotime($userData['token_expiry']) > time()) {
-        // 检查是否为管理员
+        // 检查是否为管理员并细分权限组
         $openid = $userData['openid'];
-        $stmtAdmin = $pdo->prepare("SELECT * FROM fy_admins WHERE openid = ?");
+        $stmtAdmin = $pdo->prepare("SELECT role FROM fy_admins WHERE openid = ?");
         $stmtAdmin->execute([$openid]);
         $adminData = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
 
         if ($adminData) {
-            $userData['is_admin'] = true;
+            $role = $adminData['role'];
+            $userData['is_admin'] = ($role === 'super');
+            $userData['is_lucky_admin'] = ($role === 'lucky' || $role === 'super');           
         } else {
             $userData['is_admin'] = false;
+            $userData['is_lucky_admin'] = false;           
         }
 
         return $userData;

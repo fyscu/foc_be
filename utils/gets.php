@@ -42,6 +42,13 @@ function getTicketById($tid) {
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
+function getTicketByHash($hash) {
+    global $pdo;
+    $stmt = $pdo->prepare("SELECT * FROM fy_workorders WHERE order_hash = ?");
+    $stmt->execute([$hash]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
 function getTicketByTechnician($technicianid) {
     global $pdo;
     $stmt = $pdo->prepare("SELECT * FROM fy_workorders WHERE assigned_technician_id = ?");

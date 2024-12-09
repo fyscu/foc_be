@@ -15,10 +15,11 @@ include('../../utils/headercheck.php');
 
 function regRepair() {
     global $pdo;
+    global $userinfo;
     $json = file_get_contents('php://input');
     $data = json_decode($json, true);
     $activity_id = $data['activity_id'];
-    $user_id = $data['uid'];
+    $user_id = $userinfo['id'];
     $name = $data['name'];
     $gender = $data['gender'];
     $departments = implode(',', $data['departments']);
@@ -31,6 +32,15 @@ function regRepair() {
 
     if ($activity['type'] != '大修') {
         echo json_encode(['success' => false, 'message' => '此活动不是大修活动']);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM fy_repair_registrations WHERE activity_id = ? AND user_id = ?");
+    $stmt->execute([$activity_id, $user_id]);
+    $userRegistered = $stmt->fetchColumn();
+
+    if ($userRegistered > 0) {
+        echo json_encode(['success' => false, 'message' => 'Registered']);
         exit;
     }
 

@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($admin && password_verify($password, $admin['password'])) {
         // 获取用户的 openid
         $openid = $admin['openid'];
-
+        $type = $admin['role'];
         // 从 fy_users 表中获取用户数据
         $stmt = $pdo->prepare("SELECT * FROM fy_users WHERE openid = ?");
         $stmt->execute([$openid]);
@@ -46,8 +46,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             unset($user['verification_code']);
             unset($user['access_token']);
             echo json_encode(["success" => true,
-                              'access_token' => $token,
+                              "access_token" => $token,
                               "message" => "登录成功",
+                              "type" => $type,
                               "user" => $user
                              ]);
         } else {

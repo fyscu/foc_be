@@ -6,7 +6,7 @@ header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Max-Age: 86400");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0); // 提前结束响应，处理 OPTIONS 预检请求
+    exit(0);
 }
 
 include('../../db.php');
@@ -16,13 +16,34 @@ include('../../utils/gets.php');
 
 $user = $userinfo;
 
+if ($user['role'] !== 'user') {
+    echo json_encode([
+        'success' => false,
+        'message' => '仅用户可创建工单'
+    ]);
+    exit;
+}
+
+if ($user['available'] <= 0) {
+    echo json_encode([
+        'success' => false,
+        'message' => '已达用户每周限额'
+    ]);
+    exit;
+}
+
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
 if($data['image'] == ""){
     $data['image'] = "https://focapi.feiyang.ac.cn/v1/ticket/default.svg";
 }
-
+if($data['user_nick'] == ""){
+    $data['user_nick'] = $user['nickname'];
+}
+if($data['model'] == ""){
+    $data['model'] = "default";
+}
 $requiredFields = [
     'purchase_date' => '购买日期',
     'phone' => '电话号码',
@@ -53,6 +74,7 @@ if (!empty($missingFields)) {
 
 $uid = $user['id'];
 $mpd = $data['purchase_date'];
+$warranty = $data['warranty_status'];
 $up = $data['phone'];
 $dt = $data['device_type'];
 $cb = $data['brand'];
@@ -61,17 +83,18 @@ $ri = $data['image'];
 $ft = $data['fault_type'];
 $qq = $data['qq'];
 $cp = $data['campus'];
+$user_nick = $data['user_nick'];
+$model = $data['model'];
 
-// 生成订单hash
-$combinedString = $uid . $mpd . $up . $dt . $cb . $rd . $ri . $ft . $qq . $cp;
+$combinedString = $uid . $mpd . $up . $warranty . $dt . $cb . $rd . $ri . $ft . $qq . $cp . $user_nick . $model;
 $orderhash = hash('sha256', $combinedString);
 
-// 检查该hash是否已存在
+$tvcode = rand(100000, 999999);
+
 $checkStmt = $pdo->prepare("SELECT id FROM fy_workorders WHERE order_hash = ?");
 $checkStmt->execute([$orderhash]);
 
 if ($checkStmt->rowCount() > 0) {
-    // 如果hash已存在，返回错误
     echo json_encode([
         'success' => false,
         'message' => 'order_exists'
@@ -79,14 +102,16 @@ if ($checkStmt->rowCount() > 0) {
     exit;
 }
 
-// 如果ash不存在，插入新工单
-$stmt = $pdo->prepare("INSERT INTO fy_workorders (user_id, machine_purchase_date, user_phone, device_type, computer_brand, repair_description, repair_status, repair_image_url, fault_type, qq_number, campus, order_hash) VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?)");
-$stmt->execute([$uid, $mpd, $up, $dt, $cb, $rd, $ri, $ft, $qq, $cp, $orderhash]);
+$stmt = $pdo->prepare("INSERT INTO fy_workorders (user_id, machine_purchase_date, user_phone, warranty_status, device_type, computer_brand, repair_description, repair_status, repair_image_url, fault_type, qq_number, campus, order_hash, transcode, user_nick, model) VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?)");
+$stmt->execute([$uid, $mpd, $up, $warranty, $dt, $cb, $rd, $ri, $ft, $qq, $cp, $orderhash, $tvcode, $user_nick, $model]);
 
-// 获取新创建的工单ID
 $workOrderId = $pdo->lastInsertId();
 
-if($workOrderId){
+if ($workOrderId) {
+    // 更新用户可用配额
+    $updateStmt = $pdo->prepare("UPDATE fy_users SET available = available - 1 WHERE id = ?");
+    $updateStmt->execute([$uid]);
+
     echo json_encode([
         'success' => true,
         'orderid' => $workOrderId

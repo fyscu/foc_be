@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $config = include('../../config.php');
 include('../../db.php');
 include('../../utils/token.php');
+include('../../utils/qiniu_url.php');
 
 $appid = $config['wechat']['app_id'];
 $secret = $config['wechat']['app_secret'];
@@ -27,15 +28,14 @@ $url = "https://api.weixin.qq.com/sns/jscode2session?appid=$appid&secret=$secret
 
 $response = file_get_contents($url);
 $responseData = json_decode($response, true);
-//echo $response;
-// $responseData['openid'] = "11456"; 测试用openid
+
 if (isset($responseData['openid'])) {
     $stmt = $pdo->prepare('SELECT * FROM fy_users WHERE openid = ?');
     $stmt->execute([$responseData['openid']]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
      
     if (!$user) {
-        //未注册，则写到数据库里，并发一个access_token
+        // 未注册，则写到数据库里，并发一个access_token
         $stmt = $pdo->prepare('INSERT INTO fy_users (openid, role, status) VALUES (?, ?, ?)');
         $stmt->execute([$responseData['openid'], 'user', 'pending']);
         $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
@@ -47,12 +47,14 @@ if (isset($responseData['openid'])) {
             'access_token' => $token,
             'uid' => '',
             'email' => '',
+            'wants' => '',
             'avatar' => '',
             'available' => '',
             'campus' => '',
             'phone' => '',
             'role' => '',
-            'nickname' => ''
+            'nickname' => '',
+            'isEmailValid' => false // 新用户，默认 email 未验证
         ]);
     } else {
         // 判断用户status，为pending时和未注册的逻辑一样
@@ -66,14 +68,22 @@ if (isset($responseData['openid'])) {
                 'access_token' => $token,
                 'uid' => '',
                 'email' => '',
+                'temp_email' => '',
+                'wants' => '',
                 'avatar' => '',
                 'available' => '',
                 'campus' => '',
                 'phone' => '',
                 'role' => '',
-                'nickname' => ''
+                'nickname' => '',
+                'isEmailValid' => false // pending 用户，默认 email 未验证
             ]);
         } else {
+            // 检查 email_token 是否为 'verified' 来判断 email 是否有效
+            if ($user['email_status'] !== "verified") {
+                $user['email_status'] = "unverified";
+            }
+            $isEmailValid = ($user['email_status'] === 'verified');
             $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
             $token = $tokenData['token']; 
             $user['available'] = $user['available'] == 1 ? true : false;
@@ -84,12 +94,15 @@ if (isset($responseData['openid'])) {
                 'access_token' => $token,
                 'uid' => $user['id'],
                 'email' => $user['email'],
-                'avatar' => $user['avatar'],
+                'temp_email' => $user['temp_email'],
+                'wants' => $user['wants'],
+                'avatar' => generatePrivateLink($user['avatar']),
                 'available' => $user['available'],
                 'campus' => $user['campus'],
                 'phone' => $user['phone'],
                 'role' => $user['role'],
-                'nickname' => $user['nickname']
+                'nickname' => $user['nickname'],
+                'isEmailValid' => $user['email_status'] // 根据 email_token 判断 email 是否已验证
             ]);
         }        
     }

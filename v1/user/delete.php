@@ -13,6 +13,8 @@ include('../../db.php');
 include('../../utils/token.php');
 include('../../utils/headercheck.php');
 include('../../utils/gets.php');
+require '../../utils/email.php';
+require '../../utils/sms.php';
 
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
@@ -34,6 +36,29 @@ if (isset($data['openid'])) {
         $user = getUserByOpenid($user_id);
 
         if ($user) {
+            if ($user['role'] == "technician"){
+                // 若为技术员，则先检查其未完工单并尝试处理
+                $atid = $user['id'];
+                $stmt = $pdo->prepare("SELECT * FROM fy_workorders WHERE assigned_technician_id = ? AND repair_status = 'Repairing'");
+                $stmt->execute([$atid]);
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC); // 获取所有未完成工单
+                
+                if (!empty($rows)) {
+                    foreach ($rows as $row) {
+                        $ticket_id = $row['id'];
+                        $updateSql = "UPDATE fy_workorders SET assigned_technician_id = NULL, assigned_time = NULL, repair_status = 'Pending' WHERE id = :id";
+                        $updateStmt = $pdo->prepare($updateSql);
+                        $updateStmt->execute([':id' => $ticket_id]);
+
+                        // 发送重新分配工单的短信通知
+                        $sms = new Sms($config);
+                        $templateKey = 'reassign'; 
+                        $phoneNumber = $row['user_phone']; // 这里应该是工单相关的用户的手机号
+                        $templateParams = [];
+                        $sms->sendSms($templateKey, $phoneNumber, $templateParams);
+                    }
+                }
+            }
             // 删除用户
             $deleteStmt = $pdo->prepare("DELETE FROM fy_users WHERE openid = :id");
             $deleteStmt->execute([':id' => $user_id]);

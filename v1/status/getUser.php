@@ -6,16 +6,17 @@ header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Max-Age: 86400");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0); // 提前结束响应，处理 OPTIONS 预检请求
+    exit(0);
 }
+
 $config = include('../../config.php');
 include('../../db.php');
 require '../../utils/email.php';
 require '../../utils/sms.php';
 include('../../utils/token.php');
-include('../../utils/headercheck.php'); //永远记得这里通过access_token给了$userinfo的全部数据
+include('../../utils/headercheck.php');
 include('../../utils/gets.php');
-
+include('../../utils/qiniu_url.php');
 
 // 获取请求参数
 $uid = isset($_GET['uid']) ? (int)$_GET['uid'] : null;
@@ -24,113 +25,117 @@ $access_token = isset($_GET['access_token']) ? $_GET['access_token'] : null;
 $phone = isset($_GET['phone']) ? $_GET['phone'] : null;
 $email = isset($_GET['email']) ? $_GET['email'] : null;
 $campus = isset($_GET['campus']) ? $_GET['campus'] : null;
+$immed = isset($_GET['immed']) ? $_GET['immed'] : null;
 $role = isset($_GET['role']) ? $_GET['role'] : null;
 $available = isset($_GET['available']) ? $_GET['available'] : null;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
-// 设置默认页数限制
-// $limit = 100;
 
-if ($userinfo['is_admin']) { //如果是管理员身份，就可以有更多的查询选项
+$isUniqueQuery = $uid || $openid || $access_token || $phone || $email;
+
+if ($userinfo['is_admin'] && $userinfo['is_lucky_admin']) {
     $query = "SELECT * FROM fy_users WHERE 1=1";
     $params = [];
+
     if ($uid) {
         $query .= " AND id = ?";
         $params[] = $uid;
     }
-
     if ($openid) {
         $query .= " AND openid = ?";
         $params[] = $openid;
     }
-
+    if ($access_token) {
+        $query .= " AND access_token = ?";
+        $params[] = $access_token;
+    }
     if ($phone) {
         $query .= " AND phone = ?";
         $params[] = $phone;
     }
-
     if ($email) {
         $query .= " AND email = ?";
         $params[] = $email;
     }
-
+    if ($immed !== null) {
+        $query .= " AND immed = ?";
+        $params[] = $immed;
+    }
     if ($campus) {
         $query .= " AND campus = ?";
         $params[] = $campus;
     }
-
     if ($role) {
         $query .= " AND role = ?";
         $params[] = $role;
     }
-
-    if ($available !== null) {  // 杜绝php把0认为false的傻逼逻辑
+    if ($available !== null) {
         $query .= " AND available = ?";
         $params[] = (int)$available;
     }
-    $start = ($page - 1) * $limit;
-    $query .= " LIMIT $limit OFFSET $start";
+
+    if (!$isUniqueQuery) {
+        $start = ($page - 1) * $limit;
+        $query .= " LIMIT $limit OFFSET $start";
+    }
 
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
-
     $userData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 去掉敏感信息
     foreach ($userData as &$user) {
-    unset($user['verification_code'], $user['access_token']);
+        unset($user['verification_code'], $user['access_token'], $user['temp_phone']);
+        if ($user['email_status'] !== "verified") {
+            $user['email_status'] = "unverified";
+        }
     }
-    //var_dump($userData);
-    $requestType = "all_users";
+
+    if ($isUniqueQuery && count($userData) === 1) {
+        $userData = $userData[0];
+    }
+
 } else {
+    $userData = null;
 
-// 查询用户数据
-$userData = null;
-
-if ($uid) {
-    $userData = getUserById($uid);
-    $requestType = 'by_uid';
+    if ($uid) {
+        $userData = getUserById($uid);
+    } elseif ($openid) {
+        $userData = getUserByOpenid($openid);
+    } elseif ($access_token) {
+        $userData = getUserByAccessToken($access_token);
+    } elseif ($phone) {
+        $userData = getUserByPhone($phone);
+    } elseif ($email) {
+        $userData = getUserByEmail($email);
+    }
 }
 
-if (!$userData && $openid) {
-    $userData = getUserByOpenid($openid);
-    $requestType = 'by_openid';
-}
-
-if (!$userData && $access_token) {
-    $userData = getUserByAccessToken($access_token);
-    $requestType = 'by_access_token';
-}
-
-if (!$userData && $phone) {
-    $userData = getUserByPhone($phone);
-    $requestType = 'by_phone';
-}
-
-if (!$userData && $email) {
-    $userData = getUserByEmail($email);
-    $requestType = 'by_email';
-}
-}
-// 如果没有找到用户数据，则返回权限不足错误
 if (!$userData) {
     echo json_encode([
         "success" => false,
-        "requesttype" => "",
+        "request_type" => "",
         "data" => "user_not_found"
     ]);
     http_response_code(403);
     exit;
 }
 
-// 移除无效数据
-unset($userData['verification_code']);
-unset($userData['access_token']);
+if (is_array($userData)) {
+    foreach ($userData as &$user) {
+        
+        $user['avatar'] = generatePrivateLink($user['avatar']);
 
-// 返回用户数据
+        if (is_array($user)) {  // 确认 $user 是数组
+            unset($user['verification_code'], $user['access_token'], $user['temp_phone']);
+        }
+    }
+} elseif (is_array($userData)) { // 如果单条数据也确认是数组
+    unset($userData['verification_code'], $userData['access_token'], $userData['temp_phone']);
+}
+
 echo json_encode([
     "success" => true,
-    "request_type" => $requestType,
+    "request_type" => $isUniqueQuery ? 'unique_query' : 'multi_query',
     "data" => $userData
 ]);
 ?>

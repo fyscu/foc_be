@@ -15,9 +15,14 @@ include('../../utils/gets.php');
 include('../../utils/token.php');
 include('../../utils/headercheck.php');
 
-$stmt = $pdo->prepare("SELECT openid FROM fy_users");
-$stmt->execute();
-$openids = $stmt->fetchAll(PDO::FETCH_ASSOC);
+if($userinfo['is_admin']){
+    $stmt = $pdo->prepare("SELECT openid FROM fy_users");
+    $stmt->execute();
+    $openids = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode(["success" => true, "data" => $openids]);
+} else {
+    echo json_encode(["success" => false, "message" => "Permission denied"]);
+}
 
-echo json_encode(["success" => true, "data" => $openids]);
 ?>

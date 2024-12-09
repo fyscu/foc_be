@@ -20,12 +20,13 @@ function createEvent() {
     $name = $data['name'];
     $type = $data['type'];
     $description = $data['description'];
+    $poster = $data['poster'];
     $start_time = $data['start_time'];
     $signup_start_time = $data['signup_start_time'];
     $signup_end_time = $data['signup_end_time'];
 
-    $stmt = $pdo->prepare("INSERT INTO fy_activities (name, type, description, start_time, signup_start_time, signup_end_time) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$name, $type, $description, $start_time, $signup_start_time, $signup_end_time]);
+    $stmt = $pdo->prepare("INSERT INTO fy_activities (name, type, description, poster, start_time, signup_start_time, signup_end_time) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$name, $type, $description, $poster, $start_time, $signup_start_time, $signup_end_time]);
 
     $eventId = $pdo->lastInsertId();
 
@@ -41,7 +42,15 @@ function createEvent() {
         ]);
     }
 }
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    createEvent();
+    $has_permission = false;
+
+    if ($userinfo['is_admin']) {
+        $has_permission = true;
+    }
+    if ($has_permission) {
+        createEvent();
+    }
 }
 ?>

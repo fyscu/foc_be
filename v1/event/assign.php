@@ -27,6 +27,7 @@ function updateRegistration($registrationId, $assigned, $assignPosition, $assign
 // $timeSlots = json_decode($data['time_slots'], true);
 $timeSlots = $data['time_slots'];
 $activity_id = $data['activity_id'];
+error_log("Received Time Slots: " . json_encode($timeSlots));
 
 if (!$timeSlots || !$activity_id) {
     echo json_encode(["success" => false]);
@@ -40,11 +41,11 @@ $assignmentResults = [];
 // 初始化已分配人员列表
 $assignedUsers = [];
 // 点位名称
-$positions = ['1号位', '4号位', '5号位', '6号位', '机动位', '现场行政'];
+$positions = ['1号位', '4号位', '5号位', '6号位', '机动位1', '机动位2', '现场行政'];
 
 // 每个时间段独立处理
 foreach ($timeSlots as $timeSlotIndex => $timeSlot) {
-    // 构造当前时间段的可用性矩阵
+    error_log("Processing Time Slot: " . $timeSlot);  // 添加调试日志
     $availableUsers = [];
     foreach ($registrations as $index => $registration) {
         if (!in_array($registration['id'], $assignedUsers) && !$registration['assigned']) {
@@ -54,7 +55,7 @@ foreach ($timeSlots as $timeSlotIndex => $timeSlot) {
             }
         }
     }
-
+    error_log("Available Users for {$timeSlot}: " . json_encode($availableUsers));  // 添加调试日志
     if (empty($availableUsers)) {
         continue;
     }
@@ -82,7 +83,7 @@ foreach ($timeSlots as $timeSlotIndex => $timeSlot) {
             if (($timeSlotIndex === 0 || $timeSlotIndex === count($timeSlots) - 1) && $registration['gender'] !== '男') {
                 continue;
             }
-            foreach (['1号位', '4号位', '5号位', '6号位', '机动位'] as $department) {
+            foreach (['1号位', '4号位', '5号位', '6号位', '机动位1', '机动位2'] as $department) {
                 if ($departmentSlots[$department] === null) {
                     $departmentSlots[$department] = $index;
                     $assignedUsers[] = $registration['id'];

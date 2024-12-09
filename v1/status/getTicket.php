@@ -13,6 +13,8 @@ include('../../db.php');
 include('../../utils/token.php');
 include('../../utils/headercheck.php'); //永远记得这里通过access_token给了$userinfo的全部数据
 include('../../utils/gets.php');
+include('../../utils/qrcode.php');
+include('../../utils/qiniu_url.php');
 
 function unauthorizedResponse() {
     $response = [
@@ -30,9 +32,14 @@ $workorderId = isset($_GET['orderid']) ? (int)$_GET['orderid'] : null;
 $userId = isset($_GET['uid']) ? (int)$_GET['uid'] : null;
 $technicianId = isset($_GET['tid']) ? (int)$_GET['tid'] : null;
 $list = isset($_GET['list']) ? $_GET['list'] : null;
-$page = isset($_GET['page']) ? (int)$_GET['page'] : null;
-$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : null; 
+$campus = isset($_GET['campus']) ? $_GET['campus'] : null;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 1000; 
 $offset = ($page - 1) * $limit;
+
+// 新增排序参数
+$sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'id';  // 默认为 id
+$order = isset($_GET['order']) && strtolower($_GET['order']) === 'desc' ? 'DESC' : 'ASC';  // 默认升序
 
 $query = "SELECT * FROM fy_workorders WHERE 1=1";
 $params = [];
@@ -40,7 +47,6 @@ $requestType = '';
 
 // 构建查询和请求种类
 if ($workorderId) {
-    // 检查用户身份的条件
     $checkQuery = "SELECT user_id, assigned_technician_id FROM fy_workorders WHERE id = ?";
     $checkStmt = $pdo->prepare($checkQuery);
     $checkStmt->execute([$workorderId]);
@@ -55,10 +61,6 @@ if ($workorderId) {
     $requestType = 'by_workorder_id';
 
 } elseif ($userId) {
-    // 打印调试信息
-    error_log("userinfo id: " . $userinfo['id'] . " userId: " . $userId);
-
-    // 修正了类型比较
     if ($userinfo['is_admin'] == false && ((int)$userinfo['id'] !== $userId || $userinfo['role'] !== 'user')) {
         unauthorizedResponse();
     }
@@ -70,6 +72,14 @@ if ($workorderId) {
         $requestType = 'by_user_id_all';
     }
     $params[] = $userId;
+
+} elseif ($campus) {
+    if ($userinfo['is_admin'] == false && ((int)$userinfo['id'] !== $userId || $userinfo['role'] !== 'user')) {
+        unauthorizedResponse();
+    }
+    $query .= " AND campus = ?";
+    $requestType = 'by_campus';
+    $params[] = $campus;
 
 } elseif ($technicianId) {
     if ($userinfo['is_admin'] == false && ((int)$userinfo['id'] !== $technicianId || $userinfo['role'] !== 'technician')) {
@@ -88,7 +98,6 @@ if ($workorderId) {
     if ($userinfo['is_admin'] == false) {
         unauthorizedResponse();
     }
-    // 现在已经是获取全部工单了，但还是要根据 list 参数过滤一下结果
     if ($list === 'done') {
         $query .= " AND repair_status = 'Done'";
         $requestType = 'all_workorders_done';
@@ -98,13 +107,30 @@ if ($workorderId) {
     } else {
         $requestType = 'all_workorders';
     }
-    $query .= " LIMIT $limit OFFSET $offset";
 }
+
+// 应用排序
+$query .= " ORDER BY $sortBy $order LIMIT $limit OFFSET $offset";
 
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 
 $workorders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($workorders as &$workorder) {
+    $workorderId = $workorder['id']; 
+    $workorderHash = $workorder['order_hash'];
+    $workorder['repair_image_url'] = generatePrivateLink($workorder['repair_image_url']);
+    $workorder['complete_image_url'] = generatePrivateLink($workorder['complete_image_url']);
+
+    if ($workorder['repair_status'] == "Closed" || $workorder['repair_status'] == "Done" || $workorder['repair_status'] == "Canceled"){
+        $workorder['qrcode_url'] = "";
+    } else {
+        $qrcodeData = "[give];$workorderId;$workorderHash";
+        $qrcode64 = generateQrCodeBase64($qrcodeData);
+        $workorder['qrcode_url'] = $qrcode64;
+    }
+}
 
 echo json_encode([
     "success" => true,

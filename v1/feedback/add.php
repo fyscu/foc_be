@@ -20,7 +20,7 @@ $user = $userinfo;
     $data = json_decode($json, true);
         
     $requiredFields = [
-        'text' => '问题描述'
+        'text' => '问题描述',
     ];
 
     $missingFields = [];
@@ -41,9 +41,14 @@ $user = $userinfo;
 
     $uid = $user['id'];
     $text = $data['text'];
+    if(isset($data['contact'])){
+        $contact = $data['contact'];
+    } else {
+        $contact = "";
+    }
     
-    $stmt = $pdo->prepare("INSERT INTO fy_info (user_id, question) VALUES (?, ?)");
-    $stmt->execute([$uid, $text]);
+    $stmt = $pdo->prepare("INSERT INTO fy_info (user_id, question, contact) VALUES (?, ?, ?)");
+    $stmt->execute([$uid, $text, $contact]);
 
     // 获取新创建的工单ID
     $questionId = $pdo->lastInsertId();

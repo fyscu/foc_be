@@ -8,10 +8,12 @@ header("Access-Control-Max-Age: 86400");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0); // 提前结束响应，处理 OPTIONS 预检请求
 }
+
 $config = include('../../config.php');
 include('../../db.php');
 include('../../utils/token.php');
 include('../../utils/headercheck.php');
+require '../../utils/sms.php';
 include('../../utils/gets.php');
 
 $json = file_get_contents('php://input');
@@ -25,6 +27,7 @@ $response = [];
 if ($ticket) {
     $has_permission = false;
 
+    // 权限检查
     if ($userinfo['is_admin']) {
         $has_permission = true;
     } elseif ($userinfo['id'] === $ticket['user_id']) {
@@ -39,13 +42,40 @@ if ($ticket) {
         $changedFields = [];
 
         foreach ($data as $key => $value) {
-            if (!empty($value) && $key != 'id' && isset($ticket[$key])) {
+            if ($value !== null && $key != 'id' && array_key_exists($key, $ticket)) {
                 if ($ticket[$key] != $value) {
                     $updateFields[] = "$key = :$key";
                     $updateValues[":$key"] = $value;
                     $changedFields[$key] = $value;
                 }
             }
+        }
+        // 处理特殊情况：如果工单状态为 Canceled 或 Closed
+        if (isset($data['repair_status']) && in_array($data['repair_status'], ['Canceled', 'Closed'])) {
+            // 检查工单是否分配了技术员
+            if (!empty($ticket['assigned_technician_id'])) {
+                // 更新 fy_users 表中的技术员 available 状态为 1
+                $technician_id = $ticket['assigned_technician_id'];
+                $updateTechnicianSql = "UPDATE fy_users SET available = 1 WHERE id = :technician_id";
+                $stmt = $pdo->prepare($updateTechnicianSql);
+                $stmt->execute([':technician_id' => $technician_id]);
+                // 找到这个技术员
+                $stmttech = $pdo->prepare("SELECT phone FROM fy_users WHERE id = ?");
+                $stmttech->execute([$technician_id]);
+                $rowtechphone = $stmttech->fetch(PDO::FETCH_ASSOC);
+
+                $sms = new Sms($config);
+                // 发送给技术员
+                $templateKey = 'beclosed';
+                $phoneNumber = $rowtechphone['phone'];
+                $templateParams = [];
+                $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
+            }
+            // 返还用户的配额（如果本周还满着就不用再返还了）
+            $user_id = $ticket['user_id'];
+            $updateUserQuotaSql = "UPDATE fy_users SET available = available + 1 WHERE id = :user_id AND role = 'user' AND available < 5";
+            $stmtUser = $pdo->prepare($updateUserQuotaSql);
+            $stmtUser->execute([':user_id' => $user_id]);
         }
 
         if (count($updateFields) > 0) {
