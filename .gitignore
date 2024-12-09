@@ -1,1 +1,3 @@
 config.php
+utils/qiniusdk/qiniu/php-sdk/.gitignore
+*.ini
