@@ -1,40 +1,55 @@
 <?php
-
 return [
     'info' => [
-        'domain' => 'domain',
-        'adminreg' => true
+        'domain' => 'https://focapi.feiyang.ac.cn',
+        'appdomain' => 'https://focapp.feiyang.ac.cn',
+        'adminreg' => false,
+        'weeklyset' => 5,
+        'ticketcooldown' => false,
+        'ticketcooldowndays' => 1
     ],
     'token' => [
-        'salt' => 'woaiwanyuanshen'
+        'salt' => '会长爱玩原神'
+    ],
+    'qiniu' => [
+        'accessKey' => 'dev@fyscu.com',
+        'secretKey' => 'dev@fyscu.com',
+        'bucket' => 'fyforum',
+        'domain' => 'https://qncdn.feiyang.ac.cn',
+        'uploadUrl' => 'https://up-z2.qiniup.com/'
     ],
     'db' => [
-        'host' => 'localhost',
-        'dbname' => 'scufy',
-        'username' => 'user',
+        'host' => 'host',
+        'dbname' => 'name',
+        'username' => 'name',
         'password' => 'pass'
     ],
     'wechat' => [
-        'app_id' => 'id',
-        'app_secret' => 'key'
+        'app_id' => 'dev@fyscu.com',
+        'app_secret' => 'dev@fyscu.com'
     ],
     'email' => [
-        'smtp_host' => 'smtp.exmail.qq.com',
+        'smtp_host' => 'smtp.wjlnb.com',
         'smtp_port' => 465,
-        'username' => 'user',
-        'password' => 'pass'
+        'username' => 'wjl@wjlo.cc',
+        'password' => 'dev@fyscu.com'
     ],
     'sms' => [
-        'secret_id' => 'id',
-        'secret_key' => 'key',
-        'sms_sdk_appid' => 'id',
+        'secret_id' => 'dev@fyscu.com',
+        'secret_key' => 'dev@fyscu.com',
+        'sms_sdk_appid' => '114514',
         'template_ids' => [
-            'registration' => '1',
-            'assign_to_technician' => '2',
-            'assign_to_user' => '3',
-            'completion' => '4'
+            'registration' => '621159',
+            'migration' => '621159',
+            'reassign' => '2262137',
+            'changephone' => '2262129',
+            'assign_to_technician' => '1115370',
+            'assign_to_user' => '1115369',
+            'completion' => '1115372',
+            'repair_completion' => '2294549',
+            'beclosed' => '2272153'
         ],
-        'sign_name' => 'sign'
+        'sign_name' => '飞扬维修'
     ]
 ];
 
