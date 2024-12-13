@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
@@ -120,17 +123,18 @@ if (!$userData) {
     exit;
 }
 
-if (is_array($userData)) {
+if (isset($userData['avatar'])) {
+    // 单条处理逻辑
+    $userData['avatar'] = generatePrivateLink($userData['avatar']);
+    unset($userData['verification_code'], $userData['access_token'], $userData['temp_phone']);
+} elseif (is_array($userData)) {
+    // 多条处理逻辑
     foreach ($userData as &$user) {
-        
-        $user['avatar'] = generatePrivateLink($user['avatar']);
-
-        if (is_array($user)) {  // 确认 $user 是数组
+        if (is_array($user)) {
+            $user['avatar'] = generatePrivateLink($user['avatar']);
             unset($user['verification_code'], $user['access_token'], $user['temp_phone']);
         }
     }
-} elseif (is_array($userData)) { // 如果单条数据也确认是数组
-    unset($userData['verification_code'], $userData['access_token'], $userData['temp_phone']);
 }
 
 echo json_encode([

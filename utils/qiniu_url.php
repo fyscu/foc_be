@@ -10,6 +10,7 @@ function generatePrivateLink($object) {
     $bucketDomain = $config['qiniu']['domain'];
     $accessKey = $config['qiniu']['accessKey'];
     $secretKey = $config['qiniu']['secretKey'];
+    $rawobject = $object;
     if (filter_var($object, FILTER_VALIDATE_URL)) {
         $parsedUrl = parse_url($object);
         $object = ltrim($parsedUrl['path'], '/');
@@ -21,6 +22,10 @@ function generatePrivateLink($object) {
 
     $baseUrl = "{$bucketDomain}/{$object}";
     $privateUrl = $auth->privateDownloadUrl($baseUrl, 3600);
+
+    if (preg_match('/doubanio/', $rawobject)) {
+        $privateUrl = $rawobject;
+    }
 
     return $privateUrl;
 }
