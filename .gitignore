@@ -2,3 +2,4 @@ config.php
 utils/qiniusdk/qiniu/php-sdk/.gitignore
 *.ini
 /v1/event/lists
+*.DS_Store
