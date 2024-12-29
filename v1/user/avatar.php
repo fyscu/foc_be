@@ -16,6 +16,7 @@ include('../../utils/gets.php');
 include('../../utils/token.php');
 include('../../utils/headercheck.php'); //新逻辑下这里也需要Bearer验证了
 include('../../utils/qiniu_avatar.php');
+include('../../utils/qiniu_url.php');
 
 $accessKey = $config['qiniu']['accessKey'];
 $secretKey = $config['qiniu']['secretKey'];
@@ -30,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     if ($result['success']){
         echo json_encode([
             'success' => true,
-            'data' => $result['data']
+            'data' => generatePrivateLink($result['data'])
         ]);       
         //echo $result['data'];
     } else {

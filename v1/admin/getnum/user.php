@@ -33,6 +33,7 @@ $uid = isset($_GET['uid']) ? $_GET['uid'] : null;
 $status = isset($_GET['status']) ? $_GET['status'] : null;
 $available = isset($_GET['available']) ? $_GET['available'] : null;
 $campus = isset($_GET['campus']) ? $_GET['campus'] : null; 
+$immed = isset($_GET['immed']) ? $_GET['immed'] : null; 
 
 $query = "SELECT COUNT(*) FROM fy_users WHERE 1=1";
 $params = [];
@@ -55,6 +56,11 @@ if ($uid) {
 if ($available !== null) {
     $query .= " AND available = ?";
     $params[] = $available;
+}
+
+if ($immed !== null) {
+    $query .= " AND immed = ?";
+    $params[] = $immed;
 }
 
 if ($campus) {

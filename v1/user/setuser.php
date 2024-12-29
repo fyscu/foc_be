@@ -17,6 +17,16 @@ include('../../utils/gets.php');
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
+if (isset($data['openid'])) {
+    $openid = $data['openid'];
+}
+
+if (isset($data['avatar'])) {
+    $avatar = $data['avatar'];
+    $clean_avatar = explode('?', $avatar)[0];
+    $data['avatar'] = $clean_avatar;
+} //对私有化逻辑产生的图片上传bug修改
+
 $target_openid = $openid;
 $target_user = $userinfo;
 $response = [];
