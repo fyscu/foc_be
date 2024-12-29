@@ -33,11 +33,14 @@ $role = isset($_GET['role']) ? $_GET['role'] : null;
 $available = isset($_GET['available']) ? $_GET['available'] : null;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
+$sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'id';
+$order = isset($_GET['order']) && strtolower($_GET['order']) === 'desc' ? 'DESC' : 'ASC';
 
 $isUniqueQuery = $uid || $openid || $access_token || $phone || $email;
 
 if ($userinfo['is_admin'] && $userinfo['is_lucky_admin']) {
     $query = "SELECT * FROM fy_users WHERE 1=1";
+    
     $params = [];
 
     if ($uid) {
@@ -77,9 +80,11 @@ if ($userinfo['is_admin'] && $userinfo['is_lucky_admin']) {
         $params[] = (int)$available;
     }
 
+    $query .= " ORDER BY $sortBy $order";
+    
     if (!$isUniqueQuery) {
         $start = ($page - 1) * $limit;
-        $query .= " LIMIT $limit OFFSET $start";
+        $query .= " LIMIT $limit OFFSET $page";
     }
 
     $stmt = $pdo->prepare($query);
@@ -140,6 +145,8 @@ if (isset($userData['avatar'])) {
 echo json_encode([
     "success" => true,
     "request_type" => $isUniqueQuery ? 'unique_query' : 'multi_query',
+    "sortBy" => $sortBy,
+    "order" => $order,
     "data" => $userData
 ]);
 ?>
