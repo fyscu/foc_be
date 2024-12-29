@@ -31,8 +31,10 @@ $target_openid = $openid;
 $target_user = $userinfo;
 $response = [];
 
-if (isset($data['available'])) {
-    $data['available'] = $data['available'] === true ? 1 : 0;
+if (array_key_exists('available', $data)) {
+    if (is_bool($data['available'])) {
+        $data['available'] = $data['available'] ? 1 : 0;
+    }
 }
 
 if ($target_user) {
@@ -59,6 +61,14 @@ if ($target_user) {
                 }
             }
         }
+
+        if (isset($data['available']) && $userinfo['is_admin'] && $target_openid) {
+            $weeklyset = $data['available'] ?? $config['info']['weeklyset'];
+            $data['available'] = $weeklyset;
+            $updateFields[] = "available = :available";
+            $updateValues[':available'] = $weeklyset;
+            $changedFields['available'] = $weeklyset;
+        } //手动设置每周限额
 
         if (count($updateFields) > 0) {
             $updateSql = "UPDATE fy_users SET " . implode(", ", $updateFields) . " WHERE openid = :id";
