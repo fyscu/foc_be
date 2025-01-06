@@ -25,6 +25,7 @@ return [
         'password' => 'pass'
     ],
     'wechat' => [
+        'api_url' => 'https://api.weixin.qq.com/sns/jscode2session',
         'app_id' => 'dev@fyscu.com',
         'app_secret' => 'dev@fyscu.com'
     ],
