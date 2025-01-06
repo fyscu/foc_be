@@ -18,13 +18,14 @@ include('../../utils/qiniu_url.php');
 
 $appid = $config['wechat']['app_id'];
 $secret = $config['wechat']['app_secret'];
+$wxapi_url = $config['wechat']['api_url'];
 
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 $code = $data['code'] ?? null;
 $time = date("Y-m-d H:i:s");
 
-$url = "https://api.weixin.qq.com/sns/jscode2session?appid=$appid&secret=$secret&js_code=$code&grant_type=authorization_code";
+$url = "$wxapi_url?appid=$appid&secret=$secret&js_code=$code&grant_type=authorization_code";
 
 $response = file_get_contents($url);
 $responseData = json_decode($response, true);
