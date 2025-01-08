@@ -30,7 +30,8 @@ function getTechnicianYearlyInfo($uid, $year = null) {
     global $pdo;
 
     // 如果未指定年份，则默认使用当前年份
-    $year = $year ?? date('Y');
+    // $year = $year ?? date('Y');
+    $year = "$year ?? date('Y')";
 
     // 获取该年的时间范围
     $startOfYear = $year . '-01-01 00:00:00';
