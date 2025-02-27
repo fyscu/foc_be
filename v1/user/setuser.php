@@ -8,6 +8,7 @@ header("Access-Control-Max-Age: 86400");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0); // 提前结束响应，处理 OPTIONS 预检请求
 }
+
 $config = include('../../config.php');
 include('../../db.php');
 include('../../utils/token.php');
@@ -17,33 +18,38 @@ include('../../utils/gets.php');
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
-if (isset($data['openid'])) {
-    $openid = $data['openid'];
-}
-
 if (isset($data['avatar'])) {
     $avatar = $data['avatar'];
     $clean_avatar = explode('?', $avatar)[0];
     $data['avatar'] = $clean_avatar;
-} //对私有化逻辑产生的图片上传bug修改
+} // 对私有化逻辑产生的图片上传 bug 修改
 
-$target_openid = $openid;
-$target_user = $userinfo;
 $response = [];
+$current_user = $userinfo;
 
-if (array_key_exists('available', $data)) {
-    if (is_bool($data['available'])) {
-        $data['available'] = $data['available'] ? 1 : 0;
-    }
+$is_admin = $userinfo['is_admin'] ?? false;
+
+// 如果用户没有管理员权限，并且传入了 id，但传入的 id 与当前用户的 id 不一致，则忽略传入的 id
+if (!$is_admin && isset($data['id']) && $data['id'] != $current_user['id']) {
+    unset($data['id']); // 忽略！
+}
+
+if (isset($data['id'])) {
+    // 管理员通过 ID 修改用户信息
+    $target_uid = $data['id'];
+    $target_user = getUserById($target_uid);
+} else {
+    // 用户修改自己的信息，直接使用当前用户信息
+    $target_user = $current_user;
 }
 
 if ($target_user) {
     $has_permission = false;
 
     // 检查是否为管理员或本人
-    if ($userinfo['is_admin']) {
+    if ($is_admin) {
         $has_permission = true;
-    } elseif ($userinfo['openid'] === $target_openid) {
+    } elseif ($userinfo['id'] === $target_user['id']) {
         $has_permission = true;
     }
 
@@ -62,17 +68,17 @@ if ($target_user) {
             }
         }
 
-        if (isset($data['available']) && $userinfo['is_admin'] && $target_openid) {
+        if (isset($data['available']) && $is_admin && $target_user['openid']) {
             $weeklyset = $data['available'] ?? $config['info']['weeklyset'];
             $data['available'] = $weeklyset;
             $updateFields[] = "available = :available";
             $updateValues[':available'] = $weeklyset;
             $changedFields['available'] = $weeklyset;
-        } //手动设置每周限额
+        } // 手动设置每周限额
 
         if (count($updateFields) > 0) {
-            $updateSql = "UPDATE fy_users SET " . implode(", ", $updateFields) . " WHERE openid = :id";
-            $updateValues[':id'] = $target_openid;
+            $updateSql = "UPDATE fy_users SET " . implode(", ", $updateFields) . " WHERE id = :id";
+            $updateValues[':id'] = $target_user['id'];
 
             $stmt = $pdo->prepare($updateSql);
             $stmt->execute($updateValues);
