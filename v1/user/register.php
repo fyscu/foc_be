@@ -49,7 +49,7 @@ if (!$user) {
     $sms = new Sms($config);
     $templateKey = 'registration'; 
     $phoneNumber = $phone; 
-    $templateParams = [$verification_code];
+    $templateParams = ['code' => $verification_code];
     $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
 
     if ($response) {
@@ -79,7 +79,7 @@ if (!$user) {
         $sms = new Sms($config);
         $templateKey = 'migration'; 
         $phoneNumber = $phone; 
-        $templateParams = [$verification_code];
+        $templateParams = ['code' => $verification_code];
         $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
 
         if ($response) {
@@ -114,7 +114,7 @@ if (!$user) {
             $sms = new Sms($config);
             $templateKey = 'registration'; 
             $phoneNumber = $phone; 
-            $templateParams = [$verification_code];
+            $templateParams = ['code' => $verification_code];
             $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
 
             if ($response) {

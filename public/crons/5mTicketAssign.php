@@ -18,8 +18,6 @@ if ($actioncode !== $config['info']['actioncode']) {
 function assignWorkOrders() {
     $config = include('../../config.php');
     global $pdo;
-
-    // 获取所有未分配的工单
     $stmt = $pdo->query("SELECT * FROM fy_workorders WHERE repair_status = 'Pending'");
     $workOrders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -70,20 +68,16 @@ function assignWorkOrders() {
                 default:
                     $weight = 0;
             }
-
-            // 仅记录权重大于 0 的技术员
             if ($weight > 0) {
                 $technicianWeights[] = ['technician' => $technician, 'weight' => $weight];
             }
         }
 
-        // 如果没有符合条件的技术员，跳过此工单
         if (empty($technicianWeights)) {
             echo "工单 ".$workOrder['id']." 没有合适的技术员可分配<br>";
             continue;
         }
 
-        // 按照权重随机选择技术员
         $totalWeight = array_sum(array_column($technicianWeights, 'weight'));
         $random = mt_rand(1, $totalWeight);
 
@@ -96,7 +90,6 @@ function assignWorkOrders() {
             }
         }
 
-        // 分配工单
         $assignedTime = date('Y-m-d H:i:s');
 
         // 更新工单信息并标记技术员不可用
@@ -107,13 +100,10 @@ function assignWorkOrders() {
         $stmt = $pdo->prepare("UPDATE fy_users SET available = 0 WHERE id = ?");
         $stmt->execute([$chosenTechnician['id']]);
 
-        // 记录分配日志并输出调试信息
         echo "工单 ".$workOrder['id']." 已分配给技术员 ".$chosenTechnician['nickname']."<br>";
 
-        // 获取用户信息
         $user = getUserById($workOrder['user_id']);
 
-        // 发送短信和邮件通知
         $notification = new Email($config);
         $sms = new Sms($config);
 
@@ -139,13 +129,10 @@ function assignWorkOrders() {
             echo "通知发送失败<br>";
         }
 
-        // 从技术员列表中移除已分配的技术员
         $technicians = array_filter($technicians, function($t) use ($chosenTechnician) {
             return $t['id'] != $chosenTechnician['id'];
         });
     }
 }
-
-// 定时任务调用
 assignWorkOrders();
 ?>

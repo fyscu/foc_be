@@ -123,20 +123,20 @@ if (!empty($assigned_technician_id) && !empty($assigned_time)) {
     // 发送给技术员
     $templateKey = 'assign_to_technician';
     $phoneNumber = $newTechnician['phone'];
-    $templateParams = [$newTechnician['nickname'], $user['nickname'], $ticket['user_phone']];
+    $templateParams = ['tech' => $newTechnician['nickname'], 'mate' => $user['nickname'], 'maten' => $ticket['user_phone']];
     $sms->sendSms($templateKey, $phoneNumber, $templateParams);
-    $notification->sendEmail($newTechnician['email'], "新的报修工单", "您有一个新的报修工单，工单编号：{$ticket['id']}。");
+    $notification->sendEmail($newTechnician['email'], "新的报修工单", "亲爱的技术员{$newTechnician['nickname']}，您有一个新的报修工单，工单编号：{$ticket['id']}。用户联系方式：{$ticket['user_phone']}，请尽快联系用户！飞扬感谢您的付出 ：）");
 
     // 发送给用户
     $templateKey = 'assign_to_user';
     $phoneNumber = $ticket['user_phone'];
-    $templateParams = [$user['nickname'], $newTechnician['nickname'], $newTechnician['phone']];
+    $templateParams = ['mate' => $user['nickname'], 'tech' => $newTechnician['nickname'], 'techn' => $newTechnician['phone']];
     $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
-    $notification->sendEmail($user['email'], "报修工单已分配", "您的报修工单已分配给技术员，技术员编号：{$tid}。");
+    $notification->sendEmail($user['email'], "报修工单已重新分配", "尊敬的用户，您好！非常抱歉地通知您，您的报修工单原技术员因故无法为您服务，我们已为您分配新的技术员，技术员昵称：{$newTechnician['nickname']}。");
 
     // 记录转单
-    $stmt = $pdo->prepare("INSERT INTO fy_transfer_record (time, type, fromuid, fromname, userid, username, tid, tname) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$current_time, 'transfer', $assigned_technician_id, getUserById($assigned_technician_id)['nickname'], $user['id'], $user['nickname'], $tid, $newTechnician['nickname']]);
+    $stmt = $pdo->prepare("INSERT INTO fy_transfer_record (ticketid, time, type, fromuid, fromname, userid, username, tid, tname) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$ticket['id'], $current_time, 'transfer', $assigned_technician_id, getUserById($assigned_technician_id)['nickname'], $user['id'], $user['nickname'], $tid, $newTechnician['nickname']]);
 
     $response = [
         'success' => true,
@@ -165,20 +165,20 @@ if (!empty($assigned_technician_id) && !empty($assigned_time)) {
     // 发送给技术员
     $templateKey = 'assign_to_technician';
     $phoneNumber = $newTechnician['phone'];
-    $templateParams = [$newTechnician['nickname'], $user['nickname'], $ticket['user_phone']];
+    $templateParams = ['tech' => $newTechnician['nickname'], 'mate' => $user['nickname'], 'maten' => $ticket['user_phone']];
     $sms->sendSms($templateKey, $phoneNumber, $templateParams);
-    $notification->sendEmail($newTechnician['email'], "新的报修工单", "您有一个新的报修工单，工单编号：{$ticket['id']}。");
+    $notification->sendEmail($newTechnician['email'], "新的报修工单", "亲爱的技术员{$newTechnician['nickname']}，您有一个新的报修工单，工单编号：{$ticket['id']}。用户联系方式：{$ticket['user_phone']}，请尽快联系用户！飞扬感谢您的付出 ：）");
 
     // 发送给用户
     $templateKey = 'assign_to_user';
     $phoneNumber = $ticket['user_phone'];
-    $templateParams = [$user['nickname'], $newTechnician['nickname'], $newTechnician['phone']];
+    $templateParams = ['mate' => $user['nickname'], 'tech' => $newTechnician['nickname'], 'techn' => $newTechnician['phone']];
     $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
-    $notification->sendEmail($user['email'], "报修工单已分配", "您的报修工单已分配给技术员，技术员编号：{$tid}。");
+    $notification->sendEmail($user['email'], "报修工单已分配", "您的报修工单已分配给技术员，技术员昵称：{$newTechnician['nickname']}。技术员联系方式：{$newTechnician['phone']}。由于技术员均为在校学生，消息回复与通知可能不及时，请您谅解！");
 
     // 记录分配
-    $stmt = $pdo->prepare("INSERT INTO fy_transfer_record (time, type, fromuid, fromname, userid, username, tid, tname) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$current_time, 'assign', 100000, '系统', $user['id'], $user['nickname'], $tid, $newTechnician['nickname']]);
+    $stmt = $pdo->prepare("INSERT INTO fy_transfer_record (ticketid, time, type, fromuid, fromname, userid, username, tid, tname) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$ticket['id'], $current_time, 'assign', 100000, '系统', $user['id'], $user['nickname'], $tid, $newTechnician['nickname']]);
 
     $response = [
         'success' => true,

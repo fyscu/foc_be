@@ -40,7 +40,6 @@ $isUniqueQuery = $uid || $openid || $access_token || $phone || $email;
 
 if ($userinfo['is_admin'] && $userinfo['is_lucky_admin']) {
     $query = "SELECT * FROM fy_users WHERE 1=1";
-    
     $params = [];
 
     if ($uid) {
@@ -81,12 +80,13 @@ if ($userinfo['is_admin'] && $userinfo['is_lucky_admin']) {
     }
 
     $query .= " ORDER BY $sortBy $order";
-    
+
     if (!$isUniqueQuery) {
         $start = ($page - 1) * $limit;
-        $query .= " LIMIT $limit OFFSET $page";
+        $query .= " LIMIT $limit OFFSET $start";
     }
-
+    // echo $query;
+    // exit;
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
     $userData = $stmt->fetchAll(PDO::FETCH_ASSOC);

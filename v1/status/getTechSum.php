@@ -20,7 +20,7 @@ include('../../utils/token.php');
 include('../../utils/headercheck.php');
 include('../../utils/gets.php');
 
-$year = isset($_GET['year']) ? (int)$_GET['year'] : null;
+$year = isset($_GET['year']) ? $_GET['year'] : null;
 
 function convertSecondsToHours($seconds) {
     return round($seconds / 3600, 1);
@@ -31,7 +31,7 @@ function getTechnicianYearlyInfo($uid, $year = null) {
 
     // 如果未指定年份，则默认使用当前年份
     // $year = $year ?? date('Y');
-    $year = "$year ?? date('Y')";
+    $year = "2024";
 
     // 获取该年的时间范围
     $startOfYear = $year . '-01-01 00:00:00';
