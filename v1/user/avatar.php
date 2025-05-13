@@ -31,7 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     if ($result['success']){
         echo json_encode([
             'success' => true,
-            'data' => generatePrivateLink($result['data'])
+            'data' => generatePrivateLink($result['data']),
+            'rawdata' => $result['data'],
         ]);       
         //echo $result['data'];
     } else {

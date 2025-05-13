@@ -27,6 +27,10 @@ function generatePrivateLink($object) {
         $privateUrl = $rawobject;
     }
 
+    if (empty($object)) {
+        $privateUrl = '';
+    }
+    
     return $privateUrl;
 }
 

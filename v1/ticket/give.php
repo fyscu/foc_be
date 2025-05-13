@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
@@ -14,6 +17,7 @@ include('../../db.php');
 include('../../utils/token.php');
 include('../../utils/headercheck.php');
 include('../../utils/gets.php');
+include('../../utils/subcribenotice.php');
 require '../../utils/email.php';
 require '../../utils/sms.php';
 
@@ -87,6 +91,7 @@ $current_time = date('Y-m-d H:i:s');
 
 $notification = new Email($config);
 $sms = new Sms($config);
+$wechat = new SubscribeNotifier($config['wechat']['app_id'], $config['wechat']['app_secret']);
 $newtvcode = rand(100000, 999999);
 
 if (!empty($assigned_technician_id) && !empty($assigned_time)) {
@@ -126,6 +131,13 @@ if (!empty($assigned_technician_id) && !empty($assigned_time)) {
     $templateParams = ['tech' => $newTechnician['nickname'], 'mate' => $user['nickname'], 'maten' => $ticket['user_phone']];
     $sms->sendSms($templateKey, $phoneNumber, $templateParams);
     $notification->sendEmail($newTechnician['email'], "新的报修工单", "亲爱的技术员{$newTechnician['nickname']}，您有一个新的报修工单，工单编号：{$ticket['id']}。用户联系方式：{$ticket['user_phone']}，请尽快联系用户！飞扬感谢您的付出 ：）");
+    // $weno = $wechat->send($newTechnician['openid'], 'KMe-rYXD_Js_X3oE9_t6qMoa6DMm07Dfzeq94bsMvxg', 'pages/homePage/ticketDetail/index?id='.$ticket['id'].'&role=technician', ['character_string1' => $ticket['id'], 'short_thing2' => $ticket['user_nick'], 'thing4' => $ticket['fault_type'], 'time6' => $ticket['create_time'], 'thing11' => '联系方式'.$ticket['qq_number']]);
+    $weno = $wechat->send($newTechnician['openid'], 'KMe-rYXD_Js_X3oE9_t6qMoa6DMm07Dfzeq94bsMvxg', 'pages/homePage/ticketDetail/index?id='.$workOrder['id'].'&role=technician',
+    ['character_string1' => $ticket['id'],
+    'short_thing2' => $user['nickname'], 
+    'thing4' => $ticket['fault_type'],
+    'time6' => $ticket['create_time'],
+    'thing11' => '联系方式：'.$ticket['qq_number']]);
 
     // 发送给用户
     $templateKey = 'assign_to_user';
@@ -133,6 +145,10 @@ if (!empty($assigned_technician_id) && !empty($assigned_time)) {
     $templateParams = ['mate' => $user['nickname'], 'tech' => $newTechnician['nickname'], 'techn' => $newTechnician['phone']];
     $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
     $notification->sendEmail($user['email'], "报修工单已重新分配", "尊敬的用户，您好！非常抱歉地通知您，您的报修工单原技术员因故无法为您服务，我们已为您分配新的技术员，技术员昵称：{$newTechnician['nickname']}。");
+    $wechat->send($user['openid'], 'FGhVRnNp7C4580nyAXMOqSvSZCNG36cd6nEInS_RVCs', 'pages/homePage/ticketDetail/index?id='.$ticket['id'].'&role=user',
+    ['thing2' => $ticket['fault_type'],
+    'phone_number5' => $newTechnician['phone'], 
+    'thing10' => '工单号：'.$ticket['id']]);
 
     // 记录转单
     $stmt = $pdo->prepare("INSERT INTO fy_transfer_record (ticketid, time, type, fromuid, fromname, userid, username, tid, tname) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -141,6 +157,7 @@ if (!empty($assigned_technician_id) && !empty($assigned_time)) {
     $response = [
         'success' => true,
         'message' => 'Order transferred successfully',
+        'wenotice_debug' => json_encode($weno),
         'new_technician_id' => $tid,
         'new_assigned_time' => $current_time
     ];
@@ -168,6 +185,13 @@ if (!empty($assigned_technician_id) && !empty($assigned_time)) {
     $templateParams = ['tech' => $newTechnician['nickname'], 'mate' => $user['nickname'], 'maten' => $ticket['user_phone']];
     $sms->sendSms($templateKey, $phoneNumber, $templateParams);
     $notification->sendEmail($newTechnician['email'], "新的报修工单", "亲爱的技术员{$newTechnician['nickname']}，您有一个新的报修工单，工单编号：{$ticket['id']}。用户联系方式：{$ticket['user_phone']}，请尽快联系用户！飞扬感谢您的付出 ：）");
+    // $weno = $wechat->send($newTechnician['openid'], 'KMe-rYXD_Js_X3oE9_t6qMoa6DMm07Dfzeq94bsMvxg', 'pages/homePage/ticketDetail/index?id='.$ticket['id'].'&role=technician', ['character_string1' => $ticket['id'], 'short_thing2' => $ticket['user_nick'], 'thing4' => $ticket['fault_type'], 'time6' => $ticket['create_time'], 'thing11' => '联系方式'.$ticket['qq_number']]);
+    $weno = $wechat->send($newTechnician['openid'], 'KMe-rYXD_Js_X3oE9_t6qMoa6DMm07Dfzeq94bsMvxg', 'pages/homePage/ticketDetail/index?id='.$ticket['id'].'&role=technician',
+    ['character_string1' => $ticket['id'],
+    'short_thing2' => $user['nickname'], 
+    'thing4' => $ticket['fault_type'],
+    'time6' => $ticket['create_time'],
+    'thing11' => '联系方式：'.$ticket['qq_number']]);
 
     // 发送给用户
     $templateKey = 'assign_to_user';
@@ -175,6 +199,10 @@ if (!empty($assigned_technician_id) && !empty($assigned_time)) {
     $templateParams = ['mate' => $user['nickname'], 'tech' => $newTechnician['nickname'], 'techn' => $newTechnician['phone']];
     $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
     $notification->sendEmail($user['email'], "报修工单已分配", "您的报修工单已分配给技术员，技术员昵称：{$newTechnician['nickname']}。技术员联系方式：{$newTechnician['phone']}。由于技术员均为在校学生，消息回复与通知可能不及时，请您谅解！");
+    $wechat->send($user['openid'], 'FGhVRnNp7C4580nyAXMOqSvSZCNG36cd6nEInS_RVCs', 'pages/homePage/ticketDetail/index?id='.$ticket['id'].'&role=user',
+    ['thing2' => $ticket['fault_type'],
+    'phone_number5' => $newTechnician['phone'], 
+    'thing10' => '工单号：'.$ticket['id']]);
 
     // 记录分配
     $stmt = $pdo->prepare("INSERT INTO fy_transfer_record (ticketid, time, type, fromuid, fromname, userid, username, tid, tname) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");

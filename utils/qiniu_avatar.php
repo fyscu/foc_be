@@ -25,6 +25,7 @@ function uploadImage($file, $accessKey, $secretKey, $bucket, $domain, $uploadUrl
             ]);
         } else {
             $imageUrl = $domain . '/' . $ret['key'];
+            $imageUrl = strstr($imageUrl, '?', true) ?: $imageUrl;
             return json_encode([
                 'success' => true,
                 'data' => $imageUrl

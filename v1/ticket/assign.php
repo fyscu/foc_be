@@ -4,6 +4,7 @@ include('../../db.php');
 require '../../utils/email.php';
 require '../../utils/sms.php';
 include('../../utils/gets.php');
+include('../../utils/subcribenotice.php');
 
 $ifcool = $config['info']['ticketcooldown'];
 $actioncode = $_GET['token'] ?? null;
@@ -71,19 +72,11 @@ function assignWorkOrders() {
                     $weight = 0;
             }
 
-            // 仅记录权重大于 0 的技术员
             if ($weight > 0) {
                 $technicianWeights[] = ['technician' => $technician, 'weight' => $weight];
             }
         }
 
-        // 如果没有符合条件的技术员，跳过此工单
-        if (empty($technicianWeights)) {
-            echo "工单 ".$workOrder['id']." 没有合适的技术员可分配<br>";
-            continue;
-        }
-
-        // 按照权重随机选择技术员
         $totalWeight = array_sum(array_column($technicianWeights, 'weight'));
         $random = mt_rand(1, $totalWeight);
 
@@ -116,6 +109,7 @@ function assignWorkOrders() {
         // 发送短信和邮件通知
         $notification = new Email($config);
         $sms = new Sms($config);
+        $wechat = new SubscribeNotifier($config['wechat']['app_id'], $config['wechat']['app_secret']);
 
         // 发送给技术员
         $templateKey = 'assign_to_technician';
@@ -123,6 +117,12 @@ function assignWorkOrders() {
         $templateParams = ['tech' => $chosenTechnician['nickname'], 'mate' => $user['nickname'], 'maten' => $workOrder['user_phone']];
         $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
         $notification->sendEmail($chosenTechnician['email'], "新的报修工单", "亲爱的技术员{$chosenTechnician['nickname']}，您有一个新的报修工单，工单编号：{$workOrder['id']}。用户联系方式：{$workOrder['user_phone']}，请尽快联系用户！飞扬感谢您的付出 ：）");
+        $wechat->send($chosenTechnician['openid'], 'KMe-rYXD_Js_X3oE9_t6qMoa6DMm07Dfzeq94bsMvxg', 'pages/homePage/ticketDetail/index?id='.$workOrder['id'].'&role=technician',
+        ['character_string1' => $workOrder['id'],
+        'short_thing2' => $user['nickname'], 
+        'thing4' => $workOrder['fault_type'],
+        'time6' => $workOrder['create_time'],
+        'thing11' => '联系方式：'.$workOrder['qq_number']]);
 
         // 发送给用户
         $templateKey = 'assign_to_user';
@@ -130,6 +130,10 @@ function assignWorkOrders() {
         $templateParams = ['mate' => $user['nickname'], 'tech' => $chosenTechnician['nickname'], 'techn' => $chosenTechnician['phone']];
         $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
         $notification->sendEmail($user['email'], "报修工单已分配", "您的报修工单已分配给技术员，技术员昵称：{$chosenTechnician['nickname']}。技术员联系方式：{$chosenTechnician['phone']}。由于技术员均为在校学生，消息回复与通知可能不及时，请您谅解！");
+        $wechat->send($user['openid'], 'FGhVRnNp7C4580nyAXMOqSvSZCNG36cd6nEInS_RVCs', 'pages/homePage/ticketDetail/index?id='.$workOrder['id'].'&role=user',
+        ['thing2' => $workOrder['fault_type'],
+        'phone_number5' => $chosenTechnician['phone'], 
+        'thing10' => '工单号：'.$workOrder['id']]);
 
         if ($response) {
             $stmt = $pdo->prepare("INSERT INTO fy_transfer_record (ticketid, time, type, fromuid, fromname, userid, username, tid, tname) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
