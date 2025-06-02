@@ -2,8 +2,10 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-session_name('active');
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_name('admin');
+    session_start();
+}
 require '../../db.php';
 $config = include('../../config.php');
 
@@ -12,8 +14,8 @@ function isLoggedIn()
     return !empty($_SESSION['admin_logged_in']);
 }
 if (!isLoggedIn()) {
-    header("Location: index.php");
-    exit();
+    header('Location: index.php'); 
+    exit;
 }
 
 $sqlAct = "
@@ -131,11 +133,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 <body>
 <nav class="navbar navbar-expand-md navbar-dark bg-dark mb-4">
  <div class="container-fluid">
-   <a class="navbar-brand" href="#">用户状态管理系统</a>
+   <a class="navbar-brand" href="#">用户状态管理</a>
    <div class="d-flex">
      <a class="btn btn-outline-light me-2" href="index.php">返回主页</a>
-     <span class="navbar-text text-light me-3">欢迎, <?=htmlspecialchars($_SESSION['admin_username'])?></span>
-     <a class="btn btn-outline-light" href="?logout=1">退出</a>
+     <span class="navbar-text text-light me-3"><?=htmlspecialchars($_SESSION['admin_username'])?></span>
+     
    </div>
  </div>
 </nav>
@@ -203,5 +205,9 @@ $(function(){
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<footer class="mt-5 text-center text-muted small">
+  <hr>
+  Developed with ❤️ by <strong>初音过去</strong> in 2025<br>
+</footer>
 </body>
 </html>

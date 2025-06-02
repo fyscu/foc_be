@@ -1,7 +1,9 @@
 <?php
 header("Content-Type: application/json; charset=UTF-8");
-session_name('rp');
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_name('admin');
+    session_start();
+}
 require '../../utils/sms.php';
 require '../../db.php';
 $config = include('../../config.php');

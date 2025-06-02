@@ -1,7 +1,10 @@
 <?php
 $config = include('../../config.php');
 include('../../db.php');
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_name('admin');
+    session_start();
+}
 
 function isLoggedIn() {
     return isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
@@ -106,9 +109,9 @@ if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php if (isLoggedIn()): ?>
         <div class="d-flex">
             <span class="navbar-text text-light me-3">
-                欢迎, <?php echo htmlspecialchars($_SESSION['admin_username']); ?>
+                <?php echo htmlspecialchars($_SESSION['admin_username']); ?>
             </span>
-            <a class="btn btn-outline-light" href="?logout=1">退出</a>
+            <!-- <a class="btn btn-outline-light" href="?logout=1">退出</a> -->
         </div>
         <?php endif; ?>
     </div>
@@ -177,5 +180,9 @@ if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST') {
 </main>
 
 <script src="assets/bootstrap.bundle.min.js"></script>
+<footer class="mt-5 text-center text-muted small">
+  <hr>
+  Developed with ❤️ by <strong>初音过去</strong> in 2025<br>
+</footer>
 </body>
 </html>

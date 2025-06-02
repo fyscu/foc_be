@@ -1,6 +1,8 @@
 <?php
-session_name('active');
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_name('admin');
+    session_start();
+}
 require '../../utils/sms.php';
 require '../../db.php';
 $config = include('../../config.php');
@@ -143,14 +145,14 @@ if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verif
 
 <nav class="navbar navbar-expand-md navbar-dark bg-dark mb-4">
     <div class="container-fluid">
-        <a class="navbar-brand" href="#">用户状态管理系统</a>
+        <a class="navbar-brand" href="#">用户状态管理</a>
         <?php if(isLoggedIn()): ?>
             <div class="d-flex">
                 <a class="btn btn-outline-light me-2" href="pending_users.php">待激活用户</a>
                 <span class="navbar-text text-light me-3">
-                    欢迎, <?php echo htmlspecialchars($_SESSION['admin_username']); ?>
+                    <?php echo htmlspecialchars($_SESSION['admin_username']); ?>
                 </span>
-                <a class="btn btn-outline-light" href="?logout=1">退出</a>
+                <!-- <a class="btn btn-outline-light" href="?logout=1">退出</a> -->
             </div>
         <?php endif; ?>
     </div>
@@ -249,5 +251,9 @@ $(document).ready(function() {
 </script>
 
 <script src="assets/bootstrap.bundle.min.js"></script>
+<footer class="mt-5 text-center text-muted small">
+  <hr>
+  Developed with ❤️ by <strong>初音过去</strong> in 2025<br>
+</footer>
 </body>
 </html>

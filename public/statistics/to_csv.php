@@ -1,5 +1,8 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_name('admin');
+    session_start();
+}
 if (!isset($_SESSION['export_data'])) {
     exit('无可导出数据');
 }

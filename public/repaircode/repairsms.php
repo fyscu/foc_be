@@ -1,6 +1,8 @@
 <?php
-session_name('rp');
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_name('admin');
+    session_start();
+}
 $_SESSION['ved'] == true;
 $ved = true;
 ?>
