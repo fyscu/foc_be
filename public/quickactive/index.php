@@ -12,12 +12,12 @@ function isLoggedIn() {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
-    
+
     try {
         $stmt = $pdo->prepare("SELECT id, username, password FROM fy_admins WHERE username = ? AND role = 'active'");
         $stmt->execute([$username]);
         $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($admin && password_verify($password, $admin['password'])) {
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_id'] = $admin['id'];
@@ -42,12 +42,12 @@ $user_info = null;
 $search_error = null;
 if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['search'])) {
     $phone = $_POST['phone'] ?? '';
-    
+
     try {
         $stmt = $pdo->prepare("SELECT id, phone, status, immed FROM fy_users WHERE phone = ?");
         $stmt->execute([$phone]);
         $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if (!$user_info) {
             $search_error = "未找到该手机号对应的用户";
         }
@@ -58,48 +58,63 @@ if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['searc
 
 if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify'])) {
     $user_id = $_POST['user_id'] ?? 0;
-    
+
     try {
         $stmt = $pdo->prepare("SELECT status, immed, phone FROM fy_users WHERE id = ?");
         $stmt->execute([$user_id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user) {
-            // echo json_encode($user);
+            $phone = $user['phone'];
 
-            if ($user['status'] === 'verified' && $user['immed'] == 0) {
+            // 查找短信日志中该手机号的最后一条记录
+            $stmt = $pdo->prepare("SELECT openid, type FROM fy_sms_log WHERE phone = ? ORDER BY id DESC LIMIT 1");
+            $stmt->execute([$phone]);
+            $sms_log = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                $stmt = $pdo->prepare("SELECT id, openid FROM fy_users WHERE phone IS NULL ORDER BY id DESC LIMIT 1");
-                $stmt->execute();
-                $new_user = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($sms_log) {
+                $type = $sms_log['type'];
+                $openid = $sms_log['openid'];
 
-                if ($new_user) {
-                    $stmt = $pdo->prepare("UPDATE fy_users SET openid = ?, immed = 1 WHERE id = ?");
-                    $stmt->execute([$new_user['openid'], $user_id]);
+                if (in_array($type, ['reg', 'rereg'])) {
+                    $stmt = $pdo->prepare("UPDATE fy_users SET status = 'verified' WHERE id = ? AND status = 'pending'");
+                    $stmt->execute([$user_id]);
 
-                    $stmt = $pdo->prepare("DELETE FROM fy_users WHERE id = ?");
-                    $stmt->execute([$new_user['id']]);
+                    if ($stmt->rowCount() > 0) {
+                        $success_message = "用户成功激活";
+                    } else {
+                        $search_error = "该用户已激活，无需重复操作";
+                    }
 
-                    $success_message = "用户迁移激活成功，最新记录已删除";
+                } elseif ($type === 'imm') {
+                    $stmt = $pdo->prepare("SELECT id FROM fy_users WHERE phone = ? AND openid != ? LIMIT 1");
+                    $stmt->execute([$phone, $openid]);
+                    $target = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                    if ($target) {
+                        $stmt = $pdo->prepare("UPDATE fy_users SET openid = ?, immed = 1 WHERE id = ?");
+                        $stmt->execute([$openid, $target['id']]);
+
+                        $stmt = $pdo->prepare("DELETE FROM fy_users WHERE openid = ? AND phone IS NULL");
+                        $stmt->execute([$openid]);
+
+                        $success_message = "用户迁移激活成功，冗余记录已删除";
+                    } else {
+                        $search_error = "未找到可进行迁移的旧记录";
+                    }
+
                 } else {
-                    $search_error = "未找到空手机号的用户记录进行迁移";
+                    $search_error = "不支持的验证码类型：$type";
                 }
             } else {
-                $stmt = $pdo->prepare("UPDATE fy_users SET status = 'verified' WHERE id = ? AND status = 'pending'");
-                $stmt->execute([$user_id]);
-
-                if ($stmt->rowCount() > 0) {
-                    $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
-                    $success_message = "已成功激活";
-                } else {
-                    $search_error = "这个用户已经激活过了";
-                }
+                $search_error = "未找到该手机号对应的短信验证码记录";
             }
+
         } else {
-            $search_error = "未找到该用户";
+            $search_error = "未找到对应的用户信息";
         }
     } catch (PDOException $e) {
-        $search_error = "数据库错误: " . $e->getMessage();
+        $search_error = "数据库错误：" . $e->getMessage();
     }
 }
 ?>
@@ -108,18 +123,13 @@ if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verif
 <html lang="zh-CN">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="">
     <title>用户状态管理系统</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
     <script src="//static.wjlo.cc/js/jquery.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
     <style>
-        .container{
-            text-align: center;
-            float: none;
-        }
+        .container { text-align: center; }
         .user-info-card {
             max-width: 500px;
             margin: 20px auto;
@@ -187,7 +197,7 @@ if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verif
                     <p><strong>手机号:</strong> <?php echo htmlspecialchars($user_info['phone']); ?></p>
                     <p><strong>注册状态:</strong>
                         <span class="badge bg-<?php echo $user_info['status'] === 'verified' ? 'success' : 'warning'; ?>">
-                            <?php echo htmlspecialchars($user_info['status']); ?>
+                            <?php echo $user_info['status'] === 'verified' ? '已激活' : '待激活'; ?>
                         </span>
                     </p>
                     <p><strong>迁移状态:</strong>
@@ -195,13 +205,20 @@ if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verif
                             <?php echo $user_info['immed'] === '1' ? '已迁移' : '未迁移'; ?>
                         </span>
                     </p>
-
-                    <?php if($user_info['status'] === 'pending' || $user_info['immed'] === '0'): ?>
-                        <form method="post" id="verifyForm">
-                            <input type="hidden" name="user_id" value="<?php echo $user_info['id']; ?>">
-                            <button class="btn btn-lg btn-danger mt-3" type="submit" name="verify">验证用户</button>
-                        </form>
-                    <?php endif; ?>
+                    <form method="post" id="verifyForm">
+                        <input type="hidden" name="user_id" value="<?php echo $user_info['id']; ?>">
+                        <button class="btn btn-lg btn-danger mt-3" type="submit" name="verify">
+                            <?php
+                                if ($user_info['status'] === 'pending') {
+                                    echo '激活用户';
+                                } elseif ($user_info['status'] === 'verified' && $user_info['immed'] === '0') {
+                                    echo '进行迁移激活';
+                                } else {
+                                    echo '无需操作';
+                                }
+                            ?>
+                        </button>
+                    </form>
                 </div>
             <?php endif; ?>
         </div>
@@ -212,14 +229,11 @@ if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verif
 $(document).ready(function() {
     const notyf = new Notyf({
         duration: 5000,
-        position: {
-            x: 'right',
-            y: 'top',
-        },
+        position: { x: 'right', y: 'top' },
     });
 
     $('#verifyForm').submit(function(e) {
-        if(!confirm('确定要将该用户状态改为verified吗？')) {
+        if (!confirm('确定要执行该操作吗？')) {
             e.preventDefault();
         }
     });
