@@ -77,6 +77,11 @@ function assignWorkOrders() {
             }
         }
 
+        if (empty($technicianWeights)) {
+            echo "工单 ".$workOrder['id']." 没有合适的技术员可分配<br>";
+            continue;
+        }
+
         $totalWeight = array_sum(array_column($technicianWeights, 'weight'));
         $random = mt_rand(1, $totalWeight);
 

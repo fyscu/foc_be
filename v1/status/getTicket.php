@@ -39,7 +39,7 @@ $offset = ($page - 1) * $limit;
 
 // 新增排序参数
 $sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'id';  // 默认为 id
-$order = isset($_GET['order']) && strtolower($_GET['order']) === 'desc' ? 'DESC' : 'ASC';  // 默认升序
+$order = isset($_GET['order']) && strtolower($_GET['order']) === 'desc' ? 'DESC' : 'DESC';  // 默认降序
 
 $query = "SELECT * FROM fy_workorders WHERE 1=1";
 $params = [];

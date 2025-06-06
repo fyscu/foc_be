@@ -50,6 +50,30 @@ if ($ticket) {
                 }
             }
         }
+
+        // 处理特殊情况：如果工单状态为 UserConfirming 或 TechConfirming，检查是否同时点击而重复修改
+        if (isset($data['repair_status']) && in_array($data['repair_status'], ['UserConfirming', 'TechConfirming'])) {           
+            $pdo->beginTransaction(); 
+            $restmt = $pdo->prepare("SELECT repair_status FROM fy_workorders WHERE id = ? FOR UPDATE");
+            $restmt->execute([$ticket['id']]);
+            $reticket = $restmt->fetch(PDO::FETCH_ASSOC);
+            if ($reticket['repair_status'] == 'UserConfirming' && $data['repair_status'] == 'TechConfirming' || $reticket['repair_status'] == 'TechConfirming' && $data['repair_status'] == 'UserConfirming') {
+                $data['repair_status'] = 'Done';
+            }
+            $upstmt = $pdo->prepare("UPDATE fy_workorders SET repair_status = ? WHERE id = ?");
+            $upstmt->execute([$data['repair_status'], $ticket['id']]);
+            $pdo->commit();
+            $changedFields = [
+                'repair_status' => 'Done'
+            ];
+            $response = [
+                'success' => true,
+                'changedFields' => $changedFields
+            ];
+            echo json_encode($response);
+            exit;
+        }
+
         // 处理特殊情况：如果工单状态为 Canceled 或 Closed
         if (isset($data['repair_status']) && in_array($data['repair_status'], ['Canceled', 'Closed'])) {
             // 检查工单是否分配了技术员

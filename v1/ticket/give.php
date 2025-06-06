@@ -132,9 +132,9 @@ if (!empty($assigned_technician_id) && !empty($assigned_time)) {
     $sms->sendSms($templateKey, $phoneNumber, $templateParams);
     $notification->sendEmail($newTechnician['email'], "新的报修工单", "亲爱的技术员{$newTechnician['nickname']}，您有一个新的报修工单，工单编号：{$ticket['id']}。用户联系方式：{$ticket['user_phone']}，请尽快联系用户！飞扬感谢您的付出 ：）");
     // $weno = $wechat->send($newTechnician['openid'], 'KMe-rYXD_Js_X3oE9_t6qMoa6DMm07Dfzeq94bsMvxg', 'pages/homePage/ticketDetail/index?id='.$ticket['id'].'&role=technician', ['character_string1' => $ticket['id'], 'short_thing2' => $ticket['user_nick'], 'thing4' => $ticket['fault_type'], 'time6' => $ticket['create_time'], 'thing11' => '联系方式'.$ticket['qq_number']]);
-    $weno = $wechat->send($newTechnician['openid'], 'KMe-rYXD_Js_X3oE9_t6qMoa6DMm07Dfzeq94bsMvxg', 'pages/homePage/ticketDetail/index?id='.$workOrder['id'].'&role=technician',
+    $weno = $wechat->send($newTechnician['openid'], 'KMe-rYXD_Js_X3oE9_t6qMoa6DMm07Dfzeq94bsMvxg', 'pages/homePage/ticketDetail/index?id='.$ticket['id'].'&role=technician',
     ['character_string1' => $ticket['id'],
-    'short_thing2' => $user['nickname'], 
+    'short_thing2' => $user['nickname'] ?: '神秘用户', 
     'thing4' => $ticket['fault_type'],
     'time6' => $ticket['create_time'],
     'thing11' => '联系方式：'.$ticket['qq_number']]);
@@ -148,7 +148,7 @@ if (!empty($assigned_technician_id) && !empty($assigned_time)) {
     $wechat->send($user['openid'], 'FGhVRnNp7C4580nyAXMOqSvSZCNG36cd6nEInS_RVCs', 'pages/homePage/ticketDetail/index?id='.$ticket['id'].'&role=user',
     ['thing2' => $ticket['fault_type'],
     'phone_number5' => $newTechnician['phone'], 
-    'thing10' => '工单号：'.$ticket['id']]);
+    'thing10' => '您的工单已被技术员接单！请前往小程序查看。No. '.$ticket['id']]);
 
     // 记录转单
     $stmt = $pdo->prepare("INSERT INTO fy_transfer_record (ticketid, time, type, fromuid, fromname, userid, username, tid, tname) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -188,7 +188,7 @@ if (!empty($assigned_technician_id) && !empty($assigned_time)) {
     // $weno = $wechat->send($newTechnician['openid'], 'KMe-rYXD_Js_X3oE9_t6qMoa6DMm07Dfzeq94bsMvxg', 'pages/homePage/ticketDetail/index?id='.$ticket['id'].'&role=technician', ['character_string1' => $ticket['id'], 'short_thing2' => $ticket['user_nick'], 'thing4' => $ticket['fault_type'], 'time6' => $ticket['create_time'], 'thing11' => '联系方式'.$ticket['qq_number']]);
     $weno = $wechat->send($newTechnician['openid'], 'KMe-rYXD_Js_X3oE9_t6qMoa6DMm07Dfzeq94bsMvxg', 'pages/homePage/ticketDetail/index?id='.$ticket['id'].'&role=technician',
     ['character_string1' => $ticket['id'],
-    'short_thing2' => $user['nickname'], 
+    'short_thing2' => $user['nickname'] ?: '神秘用户', 
     'thing4' => $ticket['fault_type'],
     'time6' => $ticket['create_time'],
     'thing11' => '联系方式：'.$ticket['qq_number']]);
@@ -202,7 +202,7 @@ if (!empty($assigned_technician_id) && !empty($assigned_time)) {
     $wechat->send($user['openid'], 'FGhVRnNp7C4580nyAXMOqSvSZCNG36cd6nEInS_RVCs', 'pages/homePage/ticketDetail/index?id='.$ticket['id'].'&role=user',
     ['thing2' => $ticket['fault_type'],
     'phone_number5' => $newTechnician['phone'], 
-    'thing10' => '工单号：'.$ticket['id']]);
+    'thing10' => '您的工单已被技术员接单！请前往小程序查看。No. '.$ticket['id']]);
 
     // 记录分配
     $stmt = $pdo->prepare("INSERT INTO fy_transfer_record (ticketid, time, type, fromuid, fromname, userid, username, tid, tname) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");

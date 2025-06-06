@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
@@ -38,6 +41,8 @@ $user = getUserByPhone($phone);
 if (!$user) {
     // 用户不存在，更新当前用户的手机号和注册时间
     $verification_code = rand(100000, 999999);
+    $stmt = $pdo->prepare('INSERT INTO fy_sms_log (openid, created_at, phone, type) VALUES (?, ?, ?, ?)');
+    $stmt->execute([$openid, $time, $phone, 'reg']);
     $stmt = $pdo->prepare('UPDATE fy_users SET phone = ?, regtime = ?, verification_code = ? WHERE openid = ?');
     $stmt->execute([$phone, $time, $verification_code, $openid]);
 
@@ -73,6 +78,8 @@ if (!$user) {
         $tokenData = generateToken($openid, $tokensalt);
         $token = $tokenData['token'];
         $verification_code = rand(100000, 999999);
+        $stmt = $pdo->prepare('INSERT INTO fy_sms_log (openid, created_at, phone, type) VALUES (?, ?, ?, ?)');
+        $stmt->execute([$openid, $time, $phone, 'imm']);
         $stmt = $pdo->prepare('UPDATE fy_users SET verification_code = ? WHERE phone = ?');
         $stmt->execute([$verification_code, $phone]);
 
@@ -108,6 +115,8 @@ if (!$user) {
             $token = $tokenData['token'];
 
             $verification_code = rand(100000, 999999);
+            $stmt = $pdo->prepare('INSERT INTO fy_sms_log (openid, created_at, phone, type) VALUES (?, ?, ?, ?)');
+            $stmt->execute([$openid, $time, $phone, 'rereg']);
             $stmt = $pdo->prepare('UPDATE fy_users SET verification_code = ? WHERE phone = ?');
             $stmt->execute([$verification_code, $phone]);
 

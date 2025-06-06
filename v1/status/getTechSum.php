@@ -31,7 +31,7 @@ function getTechnicianYearlyInfo($uid, $year = null) {
 
     // 如果未指定年份，则默认使用当前年份
     // $year = $year ?? date('Y');
-    $year = "2024";
+    $year = "2025";
 
     // 获取该年的时间范围
     $startOfYear = $year . '-01-01 00:00:00';
@@ -127,11 +127,11 @@ function getTechnicianYearlyInfo($uid, $year = null) {
         'data' => [
             'first_time' => $firstOrder['completion_time'] ?? null,
             'last_time' => $lastOrder['completion_time'] ?? null,
-            'total_orders' => $totalOrders['total'] ?? 0,
+            'total_orders' => $totalOrders['total']."单（上半年）" ?? 0,
             'shortest_time' => $convertTime($shortestTime['duration'] ?? 0),
             'longest_time' => $convertTime($longestTime['duration'] ?? 0),
             'total_time' => $convertTime($totalDuration['total_duration'] ?? 0),
-            'total_time_in_hour' => convertSecondsToHours($totalDuration['total_duration'] ?? 0)."小时(志愿不以此计算)"
+            'total_time_in_hour' => convertSecondsToHours($totalDuration['total_duration'] ?? 0)."h（非志愿时长）"
         ]
     ];
 }

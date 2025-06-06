@@ -1,6 +1,8 @@
 <?php
 // login.php
-
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
@@ -19,6 +21,7 @@ include('../../utils/qiniu_url.php');
 $appid = $config['wechat']['app_id'];
 $secret = $config['wechat']['app_secret'];
 $wxapi_url = $config['wechat']['api_url'];
+$codePhone = $config['info']['activephone'];
 
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
@@ -37,8 +40,9 @@ if (isset($responseData['openid'])) {
      
     if (!$user) {
         // 未注册，则写到数据库里，并发一个access_token
-        $stmt = $pdo->prepare('INSERT INTO fy_users (openid, role, status) VALUES (?, ?, ?)');
-        $stmt->execute([$responseData['openid'], 'user', 'pending']);
+        $verification_code = rand(100000, 999999);
+        $stmt = $pdo->prepare('INSERT INTO fy_users (openid, role, status, verification_code) VALUES (?, ?, ?, ?)');
+        $stmt->execute([$responseData['openid'], 'user', 'pending', $verification_code]);
         $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
         $token = $tokenData['token']; 
         echo json_encode([
@@ -53,6 +57,8 @@ if (isset($responseData['openid'])) {
             'available' => '',
             'campus' => '',
             'phone' => '',
+            'codePhone' => $codePhone,
+            'verCode' => $verification_code,
             'role' => '',
             'nickname' => '',
             'isEmailValid' => false // 新用户，默认 email 未验证
@@ -60,6 +66,7 @@ if (isset($responseData['openid'])) {
     } else {
         // 判断用户status，为pending时和未注册的逻辑一样
         if ($user['status'] === 'pending') {
+            $verification_code = $user['verification_code'];
             $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
             $token = $tokenData['token']; 
             echo json_encode([
@@ -75,6 +82,8 @@ if (isset($responseData['openid'])) {
                 'available' => '',
                 'campus' => '',
                 'phone' => '',
+                'codePhone' => $codePhone,
+                'verCode' => $verification_code,
                 'role' => '',
                 'nickname' => '',
                 'isEmailValid' => false // pending 用户，默认 email 未验证

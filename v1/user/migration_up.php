@@ -28,10 +28,11 @@ if (json_last_error() !== JSON_ERROR_NONE) {
     exit;
 }
 
-$phone = $data['phone'];
-$verification_code = $data['code'];
+$phone = "+86".$data['phone'];
+$openid = $data['openid'];
 $tokensalt = $config['token']['salt'];
-$user = getUserByPhone($phone);
+$user = getUserByPhone($data['phone']);
+$newuser = getUserByOpenid($openid);
 
 if ($user && $user['immed'] == '1') {
     echo json_encode([
@@ -40,8 +41,24 @@ if ($user && $user['immed'] == '1') {
     ]);
     exit;
 } elseif ($user && $user['immed'] == '0') {
+    $stmt = $pdo->prepare('SELECT * FROM fy_sms_catcher WHERE address = ? ORDER BY id DESC LIMIT 1');
+    $stmt->execute([$phone]);
+    $smslog = $stmt->fetch(PDO::FETCH_ASSOC);
+    // if (!$smslog) {
+    //     echo json_encode([
+    //         'success' => false,
+    //         'status' => 'sms_not_found'
+    //     ]);
+    //     exit;
+    // } else {
+    //     echo json_encode([
+    //         'success' => false,
+    //         'status' => $newuser['verification_code'].'and'.$smslog['body']
+    //     ]);
+    //     exit;
+    // }
     // 验证验证码是否正确
-    if ($user['verification_code'] == $verification_code) {
+    if ($newuser['verification_code'] == $smslog['body']) {
         // 验证成功，更新用户数据并迁移 UID
         $stmt = $pdo->prepare('UPDATE fy_users SET openid = ?, immed = 1, phone = ?, email = ?, realname = ?, nickname = ?, avatar = ?, campus = ?, role = ?, status = "verified" WHERE id = ?');
         $stmt->execute([$openid,$user['phone'],$user['email'],$user['realname'],$user['nickname'],$user['avatar'],$user['campus'],$user['role'],$user['id']
@@ -58,16 +75,19 @@ if ($user && $user['immed'] == '1') {
             'status' => 'user_migrated',
             'access_token' => $token
         ]);
+        exit;
     } else {
         echo json_encode([
             'success' => false,
             'status' => 'invalid_verification_code'
         ]);
+        exit;
     }
 } else {
     echo json_encode([
         'success' => false,
         'status' => 'user_not_found'
     ]);
+    exit;
 }
 ?>
