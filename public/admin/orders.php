@@ -69,6 +69,7 @@ if ($role !== 'super') {
           <th>手机号</th>
           <th>状态</th>
           <th>校区</th>
+          <th><a href="#" class="sort-link" data-field="create_time">创建时间</a></th>
           <th><a href="#" class="sort-link" data-field="assigned_time">分配时间</a></th>
           <th><a href="#" class="sort-link" data-field="completion_time">完成时间</a></th>
         </tr>
@@ -174,6 +175,7 @@ if ($role !== 'super') {
             <td>${row.user_phone || ''}</td>
             <td>${statusMap[row.repair_status] || row.repair_status}</td>
             <td>${row.campus}</td>
+            <td>${row.create_time || ''}</td>
             <td>${row.assigned_time || ''}</td>
             <td>${row.completion_time || ''}</td>
           </tr>`;

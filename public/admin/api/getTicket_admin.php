@@ -56,7 +56,7 @@ $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 $sql = "
     SELECT 
         w.id, w.user_phone, w.repair_status, w.campus,
-        w.assigned_time, w.completion_time,
+        w.create_time, w.assigned_time, w.completion_time,
         u.nickname AS user_nick,
         t.nickname AS tech_nick
     FROM fy_workorders w
