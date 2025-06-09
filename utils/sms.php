@@ -21,8 +21,10 @@ class Sms {
         $this->log("开始发送短信");
 
         // 从配置中获取必要信息
-        $accessKeyId     = $this->smsConfig['access_key_id'];
-        $accessKeySecret = $this->smsConfig['access_key_secret'];
+        // 配置文件中的字段为 secret_id 和 secret_key
+        // 为避免名称不一致导致读取失败，这里使用这两个字段
+        $accessKeyId     = $this->smsConfig['secret_id'];
+        $accessKeySecret = $this->smsConfig['secret_key'];
         $signName        = $this->smsConfig['sign_name'];
         $templateCode    = $this->smsConfig['template_ids'][$templateKey];
 
