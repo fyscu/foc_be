@@ -52,5 +52,14 @@ if ($user) {
         'status' => 'no_sms'
     ]);
     exit;
+    // 验证码正确，更新用户状态
+    // $stmt = $pdo->prepare('UPDATE fy_users SET status = ?, phone = ? WHERE openid = ?');
+    // $stmt->execute(['verified', $rawphone, $openid]);
+    // echo json_encode([
+    //     'success' => true,
+    //     'phone' => $phone,
+    //     'status' => 'verified'
+    // ]);
+    // exit;
 }
 ?>

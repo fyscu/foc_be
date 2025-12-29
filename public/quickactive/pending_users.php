@@ -126,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 <title>待激活 / 待迁移 用户列表</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
-<script src="//static.wjlo.cc/js/jquery.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
 <style>.container{max-width:1200px}.table-responsive{margin-top:20px}</style>
 </head>

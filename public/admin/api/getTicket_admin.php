@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 session_name('admin');
 session_start();
 header('Content-Type: application/json');
@@ -58,7 +61,9 @@ $sql = "
         w.id, w.user_phone, w.repair_status, w.campus,
         w.create_time, w.assigned_time, w.completion_time,
         u.nickname AS user_nick,
-        t.nickname AS tech_nick
+        u.id AS user_id,
+        t.nickname AS tech_nick,
+        t.id AS tech_id
     FROM fy_workorders w
     LEFT JOIN fy_users u ON w.user_id = u.id
     LEFT JOIN fy_users t ON w.assigned_technician_id = t.id

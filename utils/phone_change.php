@@ -22,8 +22,14 @@ function requestPhoneChange($userinfo, $newPhone) {
     $stmt->execute([$verificationCode, $userinfo['openid']]);
 
     // 发送验证码到新手机号
+    // $sms = new Sms($config);
+    // $result = $sms->sendSms('changephone', $newPhone, [$verificationCode]);
+
     $sms = new Sms($config);
-    $result = $sms->sendSms('changephone', $newPhone, [$verificationCode]);
+    $templateKey = 'changephone'; 
+    $phoneNumber = $newphone; 
+    $templateParams = ['code' => $verificationCode];
+    $result = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
 
     if ($result === true) {
         return ['status' => 'verification_sent'];

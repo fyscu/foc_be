@@ -50,6 +50,13 @@ if ($role !== 'super') {
       </select>
     </div>
     <div class="col-md-2">
+      <select class="form-select" name="available">
+        <option value="">工作状态（仅技术员）</option>
+        <option value="0">忙碌</option>
+        <option value="1">空闲</option>
+      </select>
+    </div>
+    <div class="col-md-2">
       <button type="submit" class="btn btn-primary w-100">搜索</button>
     </div>
   </form>
@@ -57,7 +64,7 @@ if ($role !== 'super') {
   <!-- 用户表格 -->
   <div class="table-responsive">
     <table class="table table-bordered table-hover align-middle">
-      <thead>
+      <thead id="tableHeader">
         <tr>
           <th><a href="#" class="sort-link" data-field="id">ID</a></th>
           <th><a href="#" class="sort-link" data-field="nickname">昵称</a></th>
@@ -66,6 +73,7 @@ if ($role !== 'super') {
           <th>角色</th>
           <th>校区</th>
           <th>注册时间</th>
+          <th>技术员状态</th>
         </tr>
       </thead>
       <tbody id="tableBody">
@@ -134,6 +142,10 @@ if ($role !== 'super') {
                 <option value="华西">华西</option>
               </select>
             </div>
+            <!-- <div class="col-md-6">
+              <label class="form-label">技术员状态</label>
+              <input type="text" class="form-control" name="techava" id="techava" disabled>
+            </div> -->
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-danger" id="deleteBtn">删除</button>
@@ -183,6 +195,14 @@ if ($role !== 'super') {
       }
 
       for (const user of data.rows) {
+        let techava = '';
+        if (user.available == '0') {
+          techava = '忙碌中';
+        } else if (user.available == '1') {
+          techava = '空闲';
+        } else {
+          techava = ' ';
+        }
         tableBody.innerHTML += `
           <tr data-user='${JSON.stringify(user)}'>
             <td>${user.id}</td>
@@ -192,6 +212,7 @@ if ($role !== 'super') {
             <td>${user.role}</td>
             <td>${user.campus}</td>
             <td>${user.regtime}</td>
+            <td>${techava}</td>
           </tr>`;
       }
       const start = (currentPage - 1) * limit + 1;

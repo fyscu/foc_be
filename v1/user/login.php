@@ -39,8 +39,10 @@ if (isset($responseData['openid'])) {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
      
     if (!$user) {
+        
         // 未注册，则写到数据库里，并发一个access_token
         $verification_code = rand(100000, 999999);
+        // $verification_code = "请直接点击验证按钮";
         $stmt = $pdo->prepare('INSERT INTO fy_users (openid, role, status, verification_code) VALUES (?, ?, ?, ?)');
         $stmt->execute([$responseData['openid'], 'user', 'pending', $verification_code]);
         $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
@@ -56,6 +58,7 @@ if (isset($responseData['openid'])) {
             'avatar' => '',
             'available' => '',
             'campus' => '',
+            'canDuo' => '',
             'phone' => '',
             'codePhone' => $codePhone,
             'verCode' => $verification_code,
@@ -66,6 +69,7 @@ if (isset($responseData['openid'])) {
     } else {
         // 判断用户status，为pending时和未注册的逻辑一样
         if ($user['status'] === 'pending') {
+            
             $verification_code = $user['verification_code'];
             $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
             $token = $tokenData['token']; 
@@ -81,6 +85,7 @@ if (isset($responseData['openid'])) {
                 'avatar' => '',
                 'available' => '',
                 'campus' => '',
+                'canDuo' => '',
                 'phone' => '',
                 'codePhone' => $codePhone,
                 'verCode' => $verification_code,
@@ -109,6 +114,7 @@ if (isset($responseData['openid'])) {
                 'avatar' => generatePrivateLink($user['avatar']),
                 'available' => $user['available'],
                 'campus' => $user['campus'],
+                'canDuo' => $user['canDuo'],
                 'phone' => $user['phone'],
                 'role' => $user['role'],
                 'nickname' => $user['nickname'],

@@ -29,10 +29,14 @@ try {
         if ($user && $user['role'] === 'technician') {
             $row['role'] = '技术员';
             $row['role_class'] = 'text-success';
-        } else {
+        } elseif ($user && $user['role'] === 'user') {
             $row['role'] = '用户';
             $row['role_class'] = 'text-primary';
             $puredata[] = $row;
+        } else {
+            $row['role'] = '';
+            $row['role_class'] = 'text-muted';
+            $puredata[] = [];
         }
     }
     

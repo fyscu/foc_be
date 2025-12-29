@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
@@ -72,6 +75,7 @@ if (!empty($missingFields)) {
     exit;
 }
 
+// 这里就不给一个个注释了，可以参考前端和这里的英文释义
 $uid = $user['id'];
 $mpd = $data['purchase_date'];
 $warranty = $data['warranty_status'];
@@ -83,6 +87,7 @@ $ri = $data['image'];
 $ft = $data['fault_type'];
 $qq = $data['qq'];
 $cp = $data['campus'];
+$duo = $data['DuoCampus'];
 $user_nick = $data['user_nick'];
 $model = $data['model'];
 
@@ -102,8 +107,8 @@ if ($checkStmt->rowCount() > 0) {
     exit;
 }
 
-$stmt = $pdo->prepare("INSERT INTO fy_workorders (user_id, machine_purchase_date, user_phone, warranty_status, device_type, computer_brand, repair_description, repair_status, repair_image_url, fault_type, qq_number, campus, order_hash, transcode, user_nick, model) VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?)");
-$stmt->execute([$uid, $mpd, $up, $warranty, $dt, $cb, $rd, $ri, $ft, $qq, $cp, $orderhash, $tvcode, $user_nick, $model]);
+$stmt = $pdo->prepare("INSERT INTO fy_workorders (user_id, machine_purchase_date, user_phone, warranty_status, device_type, computer_brand, repair_description, repair_status, repair_image_url, fault_type, qq_number, campus, DuoCampus, order_hash, transcode, user_nick, model) VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+$stmt->execute([$uid, $mpd, $up, $warranty, $dt, $cb, $rd, $ri, $ft, $qq, $cp, $duo, $orderhash, $tvcode, $user_nick, $model]);
 
 $workOrderId = $pdo->lastInsertId();
 

@@ -9,8 +9,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0); // 提前结束响应，处理 OPTIONS 预检请求
 }
 
+function isSixDigitNumber($input) {
+    return preg_match('/^\d{6}$/', $input) === 1;
+}
+
 $config = include('../../config.php');
 include('../../db.php');
+
+$actioncode = $_GET['uploadtoken'] ?? null;
+if ($actioncode !== $config['info']['actioncode']) {
+    echo json_encode([
+        'success' => false,
+        'message' => "Bad adtion code"
+    ]);
+    exit;
+}
 
 $raw = file_get_contents('php://input');
 $data = json_decode($raw, true);
@@ -24,6 +37,12 @@ if (!is_array($data)) {
 $address   = trim($data['address'] ?? '');
 $body      = trim($data['body'] ?? '');
 $timestamp = $data['timestamp'] ?? 0;
+
+if (!isSixDigitNumber($body)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid body format']);
+    exit;
+}
 
 if ($address === '' || $body === '' || !is_numeric($timestamp)) {
     http_response_code(400);

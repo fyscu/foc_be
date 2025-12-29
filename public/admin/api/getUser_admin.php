@@ -25,6 +25,7 @@ $offset = ($page - 1) * $limit;
 $keyword = $_GET['keyword'] ?? '';
 $role = $_GET['role'] ?? '';
 $campus = $_GET['campus'] ?? '';
+$available = $_GET['available'] ?? '';
 $sort = $_GET['sort'] ?? 'id';
 $order = strtolower($_GET['order'] ?? 'asc') === 'desc' ? 'DESC' : 'ASC';
 
@@ -49,8 +50,13 @@ if ($campus) {
     $where[] = "campus = ?";
     $params[] = $campus;
 }
+if ($available !== '') {
+    $where[] = "available = ?";
+    $params[] = $available;
+    $where[] = "role = 'technician'";
+}
 
-$sql = "SELECT SQL_CALC_FOUND_ROWS id, nickname, realname, phone, email, role, campus, regtime FROM fy_users";
+$sql = "SELECT SQL_CALC_FOUND_ROWS id, nickname, realname, phone, email, role, campus, regtime, available FROM fy_users";
 if ($where) {
     $sql .= " WHERE " . implode(" AND ", $where);
 }

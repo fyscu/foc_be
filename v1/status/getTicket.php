@@ -120,7 +120,16 @@ $workorders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 foreach ($workorders as &$workorder) {
     $workorderId = $workorder['id']; 
     $workorderHash = $workorder['order_hash'];
-    $workorder['repair_image_url'] = generatePrivateLink($workorder['repair_image_url']);
+    if (isset($workorder['assigned_technician_id']) && $workorder['assigned_technician_id'] !== '' && !is_null($userId)) {
+        $techQuery = "SELECT nickname,phone FROM fy_users WHERE id = ?";
+        $techStmt = $pdo->prepare($techQuery);
+        $techStmt->execute([$workorder['assigned_technician_id']]);
+        $technicianInfo = $techStmt->fetch(PDO::FETCH_ASSOC);
+        $workorder['assigned_technician_phone'] = $technicianInfo['phone'];
+        $workorder['assigned_technician_nickname'] = $technicianInfo['nickname'];
+    }
+    $workorder['assigned_technician_id'] = $workorder['assigned_technician_nickname'] . ' - ' . $workorder['assigned_technician_phone'];
+    if ($workorder['repair_image_url'] != 'https://focapp.feiyang.ac.cn/public/ticketdefault.svg') $workorder['repair_image_url'] = generatePrivateLink($workorder['repair_image_url']);
     $workorder['complete_image_url'] = generatePrivateLink($workorder['complete_image_url']);
 
     if ($workorder['repair_status'] == "Closed" || $workorder['repair_status'] == "Done" || $workorder['repair_status'] == "Canceled"){

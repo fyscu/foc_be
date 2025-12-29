@@ -27,13 +27,15 @@ $offset = ($page - 1) * $limit;
 
 $isLuckyFilter = isset($_GET['isLucky']) ? (int)$_GET['isLucky'] : null;
 $isIdFilter = isset($_GET['id']) ? (int)$_GET['id'] : null;
+$sortField = 'id';
+$sortOrder = 'desc';
 
 if (!in_array($sortField, $allowedFields)) {
     $sortField = 'id';
 }
 
 if (!in_array(strtolower($sortOrder), ['asc', 'desc'])) {
-    $sortOrder = 'asc';
+    $sortOrder = 'desc';
 }
 
 $sql = "SELECT * FROM fy_activities";
@@ -50,7 +52,7 @@ if ($isIdFilter !== null) {
 }
 
 // 应用排序
-$sql .= " ORDER BY $sortField $sortOrder, id ASC LIMIT $limit OFFSET $offset";
+$sql .= " ORDER BY $sortField $sortOrder LIMIT $limit OFFSET $offset";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);

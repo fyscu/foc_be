@@ -170,8 +170,8 @@ if ($role !== 'super') {
         tbody.innerHTML += `
           <tr data-order='${JSON.stringify(row)}'>
             <td>${row.id}</td>
-            <td>${row.user_nick || ''}</td>
-            <td>${row.tech_nick || ''}</td>
+            <td>${row.user_nick || '神秘用户'}${"(" + row.user_id + ")" || ''}</td>
+            <td>${row.tech_nick || '未分配'}${"(" + row.tech_id + ")" || ' '}</td>
             <td>${row.user_phone || ''}</td>
             <td>${statusMap[row.repair_status] || row.repair_status}</td>
             <td>${row.campus}</td>

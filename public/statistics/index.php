@@ -14,35 +14,6 @@ $results = [];
 $startDate = '';
 $endDate = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
-
-    try {
-        $stmt = $pdo->prepare("SELECT id, username, password FROM fy_admins WHERE username = ? AND role = 'active'");
-        $stmt->execute([$username]);
-        $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($admin && password_verify($password, $admin['password'])) {
-            $_SESSION['admin_logged_in'] = true;
-            $_SESSION['admin_id'] = $admin['id'];
-            $_SESSION['admin_username'] = $admin['username'];
-            header("Location: ".$_SERVER['PHP_SELF']);
-            exit();
-        } else {
-            $login_error = "用户名或密码错误";
-        }
-    } catch (PDOException $e) {
-        $login_error = "数据库错误: " . $e->getMessage();
-    }
-}
-
-if (isset($_GET['logout'])) {
-    session_destroy();
-    header("Location: ".$_SERVER['PHP_SELF']);
-    exit();
-}
-
 if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $startDate = $_POST['start_date'] ?? '';
     $endDate = $_POST['end_date'] ?? '';
@@ -55,8 +26,8 @@ if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST') {
             COUNT(w.id) AS order_count
         FROM fy_workorders w
         INNER JOIN fy_users u ON w.assigned_technician_id = u.id
-        WHERE w.repair_status = 'done'
-        AND w.completion_time BETWEEN :start AND :end
+        WHERE w.repair_status = 'Done'
+        AND w.create_time BETWEEN :start AND :end
         GROUP BY w.assigned_technician_id
         ORDER BY order_count DESC, technician_id ASC
     ";
@@ -99,13 +70,14 @@ if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="utf-8">
     <title>技术员接单统计</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="//static.wjlo.cc/js/jquery.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 </head>
 <body>
 
 <nav class="navbar navbar-expand-md navbar-dark bg-dark mb-4">
     <div class="container-fluid">
         <a class="navbar-brand" href="#">技术员接单统计</a>
+        
         <?php if (isLoggedIn()): ?>
         <div class="d-flex">
             <span class="navbar-text text-light me-3">
@@ -118,6 +90,7 @@ if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST') {
 </nav>
 
 <main class="container">
+    
     <?php if (isLoggedIn()): ?>
         <div class="bg-light p-5 rounded">
             <h2>按时间统计接单量</h2>
@@ -162,19 +135,7 @@ if (isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     <?php else: ?>
          <div class="bg-light p-5 rounded">
-            <h2>登录</h2>
-            <?php if(isset($login_error)): ?>
-                <div class="alert alert-danger"><?php echo htmlspecialchars($login_error); ?></div>
-            <?php endif; ?>
-            <form method="post">
-                <div class="mb-3">
-                    <input type="text" class="form-control" name="username" placeholder="用户名" required>
-                </div>
-                <div class="mb-3">
-                    <input type="password" class="form-control" name="password" placeholder="密码" required>
-                </div>
-                <button class="btn btn-lg btn-primary" type="submit" name="login">登录</button>
-            </form>
+            <div class="alert alert-danger">登录失效，请刷新页面</div>           
         </div>
     <?php endif; ?>
 </main>

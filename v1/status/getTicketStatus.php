@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 if(isset($_GET['version'])){
-    if($_GET['version'] === "1.1.11"){
+    if($_GET['version'] === "1.2.4"){
         echo json_encode([
             "success" => true,
             "status" => 1

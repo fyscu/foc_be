@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 $config = include('../../config.php');
 include('../../db.php');
 if (session_status() === PHP_SESSION_NONE) {
@@ -8,34 +11,6 @@ if (session_status() === PHP_SESSION_NONE) {
 
 function isLoggedIn() {
     return isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
-}
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
-
-    try {
-        $stmt = $pdo->prepare("SELECT id, username, password FROM fy_admins WHERE username = ? AND role = 'active'");
-        $stmt->execute([$username]);
-        $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($admin && password_verify($password, $admin['password'])) {
-            $_SESSION['admin_logged_in'] = true;
-            $_SESSION['admin_id'] = $admin['id'];
-            $_SESSION['admin_username'] = $admin['username'];
-            header("Location: ".$_SERVER['PHP_SELF']);
-            exit();
-        } else {
-            $login_error = "用户名或密码错误";
-        }
-    } catch (PDOException $e) {
-        $login_error = "数据库错误: " . $e->getMessage();
-    }
-}
-
-if (isset($_GET['logout'])) {
-    session_destroy();
-    header("Location: ".$_SERVER['PHP_SELF']);
-    exit();
 }
 
 ?>
@@ -99,21 +74,9 @@ if (isset($_GET['logout'])) {
   </div>
   <?php else: ?>
     <div class="bg-light p-5 rounded">
-            <h2>登录</h2>
-            <?php if(isset($login_error)): ?>
-                <div class="alert alert-danger"><?php echo htmlspecialchars($login_error); ?></div>
-            <?php endif; ?>
-            <form method="post">
-                <div class="mb-3">
-                    <input type="text" class="form-control" name="username" placeholder="用户名" required>
-                </div>
-                <div class="mb-3">
-                    <input type="password" class="form-control" name="password" placeholder="密码" required>
-                </div>
-                <button class="btn btn-lg btn-primary" type="submit" name="login">登录</button>
-            </form>
-        </div>
-    <?php endif; ?>
+      <div class="alert alert-danger">登录失效，请刷新页面</div>           
+    </div>
+  <?php endif; ?>
 
 <script>
 function searchUser() {
@@ -170,12 +133,19 @@ form.addEventListener('submit', function(e) {
         <td class=\"${user['role_class'] ?? 'text-muted'}\">${user['role'] ?? '未知'}</td>
         <td><button class=\"btn btn-sm btn-primary\" disabled>录入</button></td>
       `;
-      } else {
+      } else if (user['role'] == '用户') {
         tr.innerHTML = `
         <td>${user['姓名'] ?? ''}</td>
         <td>${user['手机号'] ?? ''}</td>
         <td class=\"${user['role_class'] ?? 'text-muted'}\">${user['role'] ?? '未知'}</td>
         <td><button class=\"btn btn-sm btn-success\" onclick=\"commitImport('${user['openid']}')\">录入</button></td>
+      `;
+      } else {
+        tr.innerHTML = `
+        <td>${user['姓名'] ?? ''}</td>
+        <td>${user['手机号'] ?? ''}</td>
+        <td class=\"${user['role_class'] ?? 'text-muted'}\">${'无对应用户'}</td>
+        <td><button class=\"btn btn-sm btn-success\" disabled>无法录入</button></td>
       `;
       }
       tbody.appendChild(tr);

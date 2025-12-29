@@ -52,9 +52,9 @@ if (!$user) {
 
     // 发送短信验证码
     $sms = new Sms($config);
-    $templateKey = 'registration'; 
+    $templateKey = 'verification'; 
     $phoneNumber = $phone; 
-    $templateParams = ['code' => $verification_code];
+    $templateParams = ['code' => $verification_code, 'min' => '5'];
     $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
 
     if ($response) {
@@ -86,7 +86,7 @@ if (!$user) {
         $sms = new Sms($config);
         $templateKey = 'migration'; 
         $phoneNumber = $phone; 
-        $templateParams = ['code' => $verification_code];
+        $templateParams = ['code' => $verification_code, 'min' => '5'];
         $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
 
         if ($response) {
@@ -123,7 +123,7 @@ if (!$user) {
             $sms = new Sms($config);
             $templateKey = 'registration'; 
             $phoneNumber = $phone; 
-            $templateParams = ['code' => $verification_code];
+            $templateParams = ['code' => $verification_code, 'min' => '5'];
             $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
 
             if ($response) {
