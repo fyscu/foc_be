@@ -1,5 +1,7 @@
-config.php
-utils/qiniusdk/qiniu/php-sdk/.gitignore
-*.ini
 /v1/event/lists
 .DS_Store
+v1/user/fy.json
+config.php
+/utils/awssdk
+/utils/PHPExcel
+/utils/PHPExcel
