@@ -5,3 +5,5 @@ config.php
 /utils/awssdk
 /utils/PHPExcel
 /utils/PHPExcel
+/utils/phpqrcode
+/utils
