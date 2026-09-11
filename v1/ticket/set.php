@@ -37,17 +37,39 @@ if ($ticket) {
     }
 
     if ($has_permission) {
+        // 字段白名单：按角色限制可改字段
+        // 工单本人 / 分配技术员只允许改业务状态相关字段；
+        // admin 可改更多（不含主键、关联键、防伪字段）
+        $userAllowedFields = ['repair_status', 'complete_image_url'];
+        $adminExtraFields = [
+            'user_phone', 'qq_number', 'device_type', 'model', 'computer_brand',
+            'warranty_status', 'fault_type', 'campus', 'DuoCampus',
+            'repair_description', 'repair_image_url',
+            'assigned_technician_id', 'assigned_time', 'completion_time',
+            'machine_purchase_date', 'user_nick', 'refused_times'
+        ];
+        $allowedFields = $userinfo['is_admin']
+            ? array_merge($userAllowedFields, $adminExtraFields)
+            : $userAllowedFields;
+
         $updateFields = [];
         $updateValues = [];
         $changedFields = [];
 
         foreach ($data as $key => $value) {
-            if ($value !== null && $key != 'id' && array_key_exists($key, $ticket)) {
-                if ($ticket[$key] != $value) {
-                    $updateFields[] = "$key = :$key";
-                    $updateValues[":$key"] = $value;
-                    $changedFields[$key] = $value;
-                }
+            if ($value === null || $key === 'id') {
+                continue;
+            }
+            if (!in_array($key, $allowedFields, true)) {
+                continue; // 不在白名单的字段一律忽略
+            }
+            if (!array_key_exists($key, $ticket)) {
+                continue;
+            }
+            if ($ticket[$key] != $value) {
+                $updateFields[] = "$key = :$key";
+                $updateValues[":$key"] = $value;
+                $changedFields[$key] = $value;
             }
         }
 

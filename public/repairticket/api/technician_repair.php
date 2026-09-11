@@ -29,6 +29,50 @@ try {
     
     // 检查订单状态
     if ($order['status'] !== 'processing') {
+        // 如果订单已完成维修（ready/completed），显示友好的完成页面
+        if (in_array($order['status'], ['ready', 'completed'])) {
+            ?>
+            <!DOCTYPE html>
+            <html lang="zh-CN">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>维修已完成 - <?php echo htmlspecialchars($order['order_number']); ?></title>
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+                <style>
+                    body { background: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+                    .card { background: white; border-radius: 1rem; padding: 2.5rem; text-align: center; max-width: 440px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.12); }
+                    .icon { font-size: 4.5rem; margin-bottom: 1rem; }
+                    .status-ready { color: #059669; }
+                    .status-completed { color: #6B7280; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="icon"><?php echo $order['status'] === 'ready' ? '✅' : '📦'; ?></div>
+                    <h2 class="text-xl font-bold mb-2 <?php echo $order['status'] === 'ready' ? 'status-ready' : 'status-completed'; ?>">
+                        <?php echo $order['status'] === 'ready' ? '维修已完成' : '订单已结束'; ?>
+                    </h2>
+                    <p class="text-gray-600 mb-4">
+                        订单 <strong><?php echo htmlspecialchars($order['order_number']); ?></strong> 
+                        的维修记录已提交，当前状态为「<?php echo $order['status'] === 'ready' ? '待取机' : '已完成'; ?>」。
+                    </p>
+                    <?php if (!empty($order['diagnosis'])): ?>
+                    <div class="text-left bg-gray-50 rounded-lg p-4 mb-4">
+                        <p class="text-sm text-gray-500 mb-1">故障诊断</p>
+                        <p class="text-gray-800 text-sm"><?php echo nl2br(htmlspecialchars($order['diagnosis'])); ?></p>
+                        <p class="text-sm text-gray-500 mt-3 mb-1">解决方案</p>
+                        <p class="text-gray-800 text-sm"><?php echo nl2br(htmlspecialchars($order['solution'])); ?></p>
+                    </div>
+                    <?php endif; ?>
+                    <p class="text-sm text-gray-400">无需再次操作，请关闭此页面。</p>
+                </div>
+            </body>
+            </html>
+            <?php
+            exit;
+        }
+        // 其他非维修中状态（如 pending）
         echo "<div class='error'>该订单当前不在维修中状态，无法填写维修记录</div>";
         exit;
     }
@@ -68,6 +112,44 @@ try {
             background-color: #d1fae5;
             border-radius: 0.375rem;
             text-align: center;
+        }
+        /* 签名区域：防止手机键盘弹出 */
+        #signatureCanvas {
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        #technicianSignature {
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        /* 完成遮罩 */
+        .completion-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .completion-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .completion-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        .form-disabled {
+            pointer-events: none;
+            opacity: 0.5;
         }
     </style>
 </head>
@@ -254,6 +336,8 @@ try {
     </div>
 
     <script>
+        let formSubmitted = false; // 防止重复提交
+        
         document.addEventListener('DOMContentLoaded', function() {
             // 初始化签名画布
             initSignatureCanvas();
@@ -261,6 +345,12 @@ try {
             // 表单提交处理
             document.getElementById('repairForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
+                
+                // 防止重复提交
+                if (formSubmitted) {
+                    showMessage('维修记录已提交，请勿重复操作', 'error');
+                    return;
+                }
                 
                 // 获取表单数据
                 const formData = new FormData(e.target);
@@ -270,6 +360,13 @@ try {
                 if (!repairData.technician_signature) {
                     showMessage('请完成签名确认', 'error');
                     return;
+                }
+                
+                // 禁用提交按钮防止连点
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = '提交中...';
                 }
                 
                 try {
@@ -285,26 +382,53 @@ try {
                     const result = await response.json();
                     
                     if (result.success) {
-                        showMessage('维修记录已提交，订单状态已更新为待取机', 'success');
+                        formSubmitted = true;
                         
-                        // 禁用表单
+                        // 禁用整个表单
                         const form = document.getElementById('repairForm');
+                        form.classList.add('form-disabled');
                         const inputs = form.querySelectorAll('input, textarea, button');
                         inputs.forEach(input => input.disabled = true);
                         
-                        // 3秒后关闭页面
-                        setTimeout(() => {
-                            window.close();
-                        }, 3000);
+                        // 显示完成弹窗
+                        showCompletionOverlay();
                     } else {
                         showMessage('提交失败: ' + result.message, 'error');
+                        // 恢复提交按钮
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = '提交维修记录';
+                        }
                     }
                 } catch (error) {
                     console.error('提交维修记录失败:', error);
                     showMessage('提交失败，请重试', 'error');
+                    // 恢复提交按钮
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = '提交维修记录';
+                    }
                 }
             });
         });
+        
+        // 显示维修完成弹窗
+        function showCompletionOverlay() {
+            const overlay = document.createElement('div');
+            overlay.className = 'completion-overlay';
+            overlay.innerHTML = `
+                <div class="completion-card">
+                    <div class="completion-icon">✅</div>
+                    <h2 style="font-size:1.5rem;font-weight:bold;color:#065F46;margin-bottom:0.5rem;">维修已完成</h2>
+                    <p style="color:#374151;margin-bottom:1.5rem;">维修记录已成功提交，订单状态已更新为「待取机」。</p>
+                    <button onclick="this.closest('.completion-overlay').style.display='none'"
+                            style="padding:0.75rem 2rem;background:#2563EB;color:white;border:none;border-radius:0.5rem;font-size:1rem;cursor:pointer;">
+                        知道了
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
         
         // 初始化签名画布
         function initSignatureCanvas() {
@@ -312,24 +436,52 @@ try {
             const ctx = canvas.getContext('2d');
             const signatureInput = document.getElementById('technicianSignatureData');
             
-            // 调整画布大小以适应容器
+            // 保存签名图像数据，resize 后恢复
+            let savedImageData = null;
+            
+            // 调整画布大小以适应容器（保留已有签名）
             const resizeCanvas = () => {
                 const container = canvas.parentElement;
-                canvas.width = container.clientWidth;
-                canvas.height = container.clientHeight;
+                const newWidth = container.clientWidth;
+                const newHeight = container.clientHeight;
+                
+                // 如果尺寸没变，不做操作
+                if (canvas.width === newWidth && canvas.height === newHeight) return;
+                
+                // 保存当前签名内容
+                if (signatureInput.value) {
+                    savedImageData = signatureInput.value;
+                }
+                
+                canvas.width = newWidth;
+                canvas.height = newHeight;
                 
                 // 重新设置画布样式
                 ctx.lineWidth = 2;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
                 ctx.strokeStyle = '#000';
+                
+                // 恢复已有签名
+                if (savedImageData) {
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.drawImage(img, 0, 0, newWidth, newHeight);
+                    };
+                    img.src = savedImageData;
+                }
             };
             
             // 初始调整画布大小
             resizeCanvas();
             
-            // 窗口大小变化时重新调整
+            // 窗口大小变化时重新调整（键盘弹出/收起也会触发）
             window.addEventListener('resize', resizeCanvas);
+            
+            // 监听 visualViewport 变化（更精确地处理键盘弹出）
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', resizeCanvas);
+            }
             
             let isDrawing = false;
             let lastX = 0;
@@ -339,10 +491,22 @@ try {
             document.getElementById('clearSignature').addEventListener('click', function() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 signatureInput.value = '';
+                savedImageData = null;
             });
+            
+            // 签名前先收起键盘
+            function dismissKeyboard() {
+                if (document.activeElement && document.activeElement !== document.body) {
+                    document.activeElement.blur();
+                }
+                // 让所有 input/textarea 失焦
+                canvas.focus && canvas.focus();
+            }
             
             // 鼠标事件处理
             function startDrawing(e) {
+                dismissKeyboard();
+                
                 isDrawing = true;
                 const pos = getPosition(e);
                 lastX = pos.x;
@@ -364,6 +528,7 @@ try {
                 
                 // 保存签名数据
                 signatureInput.value = canvas.toDataURL();
+                savedImageData = signatureInput.value;
             }
             
             function stopDrawing() {
@@ -396,20 +561,27 @@ try {
             canvas.addEventListener('mouseup', stopDrawing);
             canvas.addEventListener('mouseout', stopDrawing);
             
-            // 绑定触摸事件
+            // 绑定触摸事件（passive: false 确保 preventDefault 生效）
             canvas.addEventListener('touchstart', function(e) {
-                e.preventDefault(); // 防止滚动
+                e.preventDefault(); // 防止滚动和键盘弹出
                 startDrawing(e);
-            });
+            }, { passive: false });
             
             canvas.addEventListener('touchmove', function(e) {
                 e.preventDefault(); // 防止滚动
                 draw(e);
-            });
+            }, { passive: false });
             
             canvas.addEventListener('touchend', function(e) {
-                e.preventDefault(); // 防止滚动
+                e.preventDefault();
                 stopDrawing();
+            }, { passive: false });
+            
+            // 阻止签名区域触发键盘
+            canvas.setAttribute('tabindex', '-1');
+            canvas.addEventListener('focus', function(e) {
+                // canvas 获取焦点时不应弹出键盘
+                e.target.setAttribute('inputmode', 'none');
             });
         }
         

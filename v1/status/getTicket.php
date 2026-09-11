@@ -1,7 +1,7 @@
 <?php
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Max-Age: 86400");
 
@@ -34,12 +34,15 @@ $technicianId = isset($_GET['tid']) ? (int)$_GET['tid'] : null;
 $list = isset($_GET['list']) ? $_GET['list'] : null;
 $campus = isset($_GET['campus']) ? $_GET['campus'] : null;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 1000; 
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 1000;
 $offset = ($page - 1) * $limit;
 
-// 新增排序参数
-$sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'id';  // 默认为 id
-$order = isset($_GET['order']) && strtolower($_GET['order']) === 'desc' ? 'DESC' : 'DESC';  // 默认降序
+// 新增排序参数（白名单，防 SQL 注入）
+$allowedSortFields = ['id', 'create_time', 'assigned_time', 'completion_time', 'repair_status'];
+$sortBy = isset($_GET['sort_by']) && in_array($_GET['sort_by'], $allowedSortFields, true)
+    ? $_GET['sort_by']
+    : 'id';
+$order = isset($_GET['order']) && strtolower($_GET['order']) === 'asc' ? 'ASC' : 'DESC';  // 默认降序
 
 $query = "SELECT * FROM fy_workorders WHERE 1=1";
 $params = [];
@@ -67,7 +70,7 @@ if ($workorderId) {
     if ($list === 'pending') {
         $query .= " AND user_id = ? AND repair_status = 'Pending'";
         $requestType = 'by_user_id_pending';
-    } else {       
+    } else {
         $query .= " AND user_id = ?";
         $requestType = 'by_user_id_all';
     }
@@ -118,15 +121,17 @@ $stmt->execute($params);
 $workorders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 foreach ($workorders as &$workorder) {
-    $workorderId = $workorder['id']; 
+    $workorderId = $workorder['id'];
     $workorderHash = $workorder['order_hash'];
+    $workorder['assigned_technician_nickname'] = '';
+    $workorder['assigned_technician_phone'] = '';
     if (isset($workorder['assigned_technician_id']) && $workorder['assigned_technician_id'] !== '' && !is_null($userId)) {
         $techQuery = "SELECT nickname,phone FROM fy_users WHERE id = ?";
         $techStmt = $pdo->prepare($techQuery);
         $techStmt->execute([$workorder['assigned_technician_id']]);
         $technicianInfo = $techStmt->fetch(PDO::FETCH_ASSOC);
-        $workorder['assigned_technician_phone'] = $technicianInfo['phone'];
-        $workorder['assigned_technician_nickname'] = $technicianInfo['nickname'];
+        $workorder['assigned_technician_phone'] = $technicianInfo['phone'] ?? '';
+        $workorder['assigned_technician_nickname'] = $technicianInfo['nickname'] ?? '';
     }
     $workorder['assigned_technician_id'] = $workorder['assigned_technician_nickname'] . ' - ' . $workorder['assigned_technician_phone'];
     if ($workorder['repair_image_url'] != 'https://focapp.feiyang.ac.cn/public/ticketdefault.svg') $workorder['repair_image_url'] = generatePrivateLink($workorder['repair_image_url']);
@@ -139,6 +144,12 @@ foreach ($workorders as &$workorder) {
         $qrcode64 = generateQrCodeBase64($qrcodeData);
         $workorder['qrcode_url'] = $qrcode64;
     }
+
+    // 存档/加急字段类型规整：方便前端做布尔判断
+    $workorder['archived'] = (int) ($workorder['archived'] ?? 0);
+    $workorder['urgent'] = (int) ($workorder['urgent'] ?? 0);
+    // restored_from 在存档单上反向指向新加急单（可用于"已恢复"判定）；在加急单上指向源存档单
+    $workorder['restored_from'] = isset($workorder['restored_from']) ? (int) $workorder['restored_from'] : null;
 }
 
 echo json_encode([

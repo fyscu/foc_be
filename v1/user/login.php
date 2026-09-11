@@ -1,8 +1,5 @@
 <?php
 // login.php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
@@ -61,7 +58,6 @@ if (isset($responseData['openid'])) {
             'canDuo' => '',
             'phone' => '',
             'codePhone' => $codePhone,
-            'verCode' => $verification_code,
             'role' => '',
             'nickname' => '',
             'isEmailValid' => false // 新用户，默认 email 未验证
@@ -69,10 +65,9 @@ if (isset($responseData['openid'])) {
     } else {
         // 判断用户status，为pending时和未注册的逻辑一样
         if ($user['status'] === 'pending') {
-            
-            $verification_code = $user['verification_code'];
+
             $tokenData = generateToken($responseData['openid'], $config['token']['salt']);
-            $token = $tokenData['token']; 
+            $token = $tokenData['token'];
             echo json_encode([
                 'success' => true,
                 'registered' => false,
@@ -88,7 +83,6 @@ if (isset($responseData['openid'])) {
                 'canDuo' => '',
                 'phone' => '',
                 'codePhone' => $codePhone,
-                'verCode' => $verification_code,
                 'role' => '',
                 'nickname' => '',
                 'isEmailValid' => false // pending 用户，默认 email 未验证
@@ -115,6 +109,7 @@ if (isset($responseData['openid'])) {
                 'available' => $user['available'],
                 'campus' => $user['campus'],
                 'canDuo' => $user['canDuo'],
+                'max_concurrent' => (int) ($user['max_concurrent'] ?? 1),
                 'phone' => $user['phone'],
                 'role' => $user['role'],
                 'nickname' => $user['nickname'],

@@ -32,17 +32,31 @@ if ($question) {
     }
 
     if ($has_permission) {
+        // 字段白名单：本人只能改 question/contact；admin 可改回复字段
+        $userAllowedFields = ['question', 'contact'];
+        $adminExtraFields = ['answer', 'status', 'answered_by'];
+        $allowedFields = $userinfo['is_admin']
+            ? array_merge($userAllowedFields, $adminExtraFields)
+            : $userAllowedFields;
+
         $updateFields = [];
         $updateValues = [];
         $changedFields = [];
 
         foreach ($data as $key => $value) {
-            if (!empty($value) && $key != 'id' && isset($question[$key])) {
-                if ($question[$key] != $value) {
-                    $updateFields[] = "$key = :$key";
-                    $updateValues[":$key"] = $value;
-                    $changedFields[$key] = $value;
-                }
+            if (empty($value) || $key === 'id') {
+                continue;
+            }
+            if (!in_array($key, $allowedFields, true)) {
+                continue;
+            }
+            if (!isset($question[$key])) {
+                continue;
+            }
+            if ($question[$key] != $value) {
+                $updateFields[] = "$key = :$key";
+                $updateValues[":$key"] = $value;
+                $changedFields[$key] = $value;
             }
         }
 

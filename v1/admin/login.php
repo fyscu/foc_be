@@ -41,7 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($user) {
 
-            $tokenData = generateToken($openid, $config['token']['salt']);
+            // 多端 token：每次登录独立签发，不再写 fy_users.access_token（避免与小程序及其他管理员互顶）
+            $tokenData = generateAdminToken($admin['id'], $openid, $config['token']['salt']);
             $token = $tokenData['token'];
             unset($user['verification_code']);
             unset($user['access_token']);

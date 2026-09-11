@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="refresh" content="0;url=https://focapp.feiyang.ac.cn/public/newrepair/">
 <title>密码登录</title>
 <style>
 body {

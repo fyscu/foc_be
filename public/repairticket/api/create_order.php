@@ -26,28 +26,38 @@ try {
     // 生成订单编号
     $position = (int)$data['position'];
     
-    // 获取当前活动的最大编号
-    $max_stmt = $pdo->prepare("
-        SELECT MAX(CAST(order_number AS UNSIGNED)) as max_number 
-        FROM fyd_orders 
-        WHERE activity_id = :activity_id
-    ");
-    $max_stmt->execute([':activity_id' => $activity_id]);
-    $max_result = $max_stmt->fetch();
-    $max_number = $max_result['max_number'] ?? 0;
-    
-    // 根据位置生成下一个编号
+    // 按位置(单号/双号)独立查询各自最大编号，避免互相干扰跳号
     if ($position == 1) {
-        // 1号位：奇数编号
-        $next_number = $max_number + 1;
-        if ($next_number % 2 == 0) {
-            $next_number++;
+        // 1号位：奇数编号，只查 position=1 的最大号
+        $max_stmt = $pdo->prepare("
+            SELECT MAX(CAST(order_number AS UNSIGNED)) as max_number 
+            FROM fyd_orders 
+            WHERE activity_id = :activity_id AND position = 1
+        ");
+        $max_stmt->execute([':activity_id' => $activity_id]);
+        $max_result = $max_stmt->fetch();
+        $max_number = $max_result['max_number'] ?? 0;
+        
+        if ($max_number == 0) {
+            $next_number = 1; // 第一个奇数
+        } else {
+            $next_number = $max_number + 2; // 奇数步进2
         }
     } else {
-        // 4号位：偶数编号
-        $next_number = $max_number + 1;
-        if ($next_number % 2 == 1) {
-            $next_number++;
+        // 2号位(双号)：偶数编号，只查 position=2 的最大号
+        $max_stmt = $pdo->prepare("
+            SELECT MAX(CAST(order_number AS UNSIGNED)) as max_number 
+            FROM fyd_orders 
+            WHERE activity_id = :activity_id AND position = 2
+        ");
+        $max_stmt->execute([':activity_id' => $activity_id]);
+        $max_result = $max_stmt->fetch();
+        $max_number = $max_result['max_number'] ?? 0;
+        
+        if ($max_number == 0) {
+            $next_number = 2; // 第一个偶数
+        } else {
+            $next_number = $max_number + 2; // 偶数步进2
         }
     }
     

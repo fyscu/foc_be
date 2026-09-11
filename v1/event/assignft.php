@@ -10,8 +10,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 include('../../db.php');
+include('../../utils/token.php');
+include('../../utils/headercheck.php');
 include('../../utils/json2xlsx.php');
 include('../../utils/gets.php');
+
+if (!$userinfo['is_admin']) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Permission denied']);
+    exit;
+}
 
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);

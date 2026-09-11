@@ -26,8 +26,8 @@ function requestPhoneChange($userinfo, $newPhone) {
     // $result = $sms->sendSms('changephone', $newPhone, [$verificationCode]);
 
     $sms = new Sms($config);
-    $templateKey = 'changephone'; 
-    $phoneNumber = $newphone; 
+    $templateKey = 'changephone';
+    $phoneNumber = $newPhone;
     $templateParams = ['code' => $verificationCode];
     $result = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
 

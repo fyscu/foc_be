@@ -1,48 +1,46 @@
 <?php
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Max-Age: 86400");
+/**
+ * 每周重置用户报修配额（fy_users.available = weeklyset）。
+ *
+ * 仅允许 CLI 调用。
+ *
+ * 1Panel 计划任务（Shell 脚本，每周执行）：
+ *   php /opt/1panel/apps/openresty/openresty/www/sites/focapi.feiyang.ac.cn/index/public/crons/weeklyUserQuotaReset.php
+ *
+ * 单用户重置（可选）：
+ *   php weeklyUserQuotaReset.php --openid=oXxxxxxxxxxxx
+ */
 
-include('../../db.php');
-$config = include('../../config.php');
-
-$json = file_get_contents('php://input');
-$data = json_decode($json, true);
-$weeklyset = $config['info']['weeklyset'];
-$manopenid = $data['openid'] ?? null;
-$manquota = $data['quota'] ?? 5;
-
-$actioncode = $_GET['token'] ?? null;
-if ($actioncode !== $config['info']['actioncode']) {
-    echo json_encode([
-        'success' => false,
-        'message' => "Bad adtion code"
-    ]);
-    exit;
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    echo "This script is CLI-only.\n";
+    exit(1);
 }
 
-if ($manopenid) {
-    $stmt = $pdo->prepare("UPDATE fy_users SET available = :weeklyset WHERE openid = :openid AND role = 'user' AND available != :weeklyset");
-    $stmt->execute([
-        ':weeklyset' => $weeklyset,
-        ':openid' => $manopenid
-    ]);
+chdir(__DIR__);
 
-    echo json_encode([
-        'success' => true,
-        'message' => "User (openid: $manopenid) 's weeklyquota was set to: $weeklyset"
-    ]);
+require_once __DIR__ . '/../../db.php';
+$config = include __DIR__ . '/../../config.php';
+
+$weeklyset = (int) ($config['info']['weeklyset'] ?? 5);
+
+// 解析 CLI argv：支持 --openid=xxx
+$openid = null;
+foreach ($argv as $arg) {
+    if (preg_match('/^--openid=(.+)$/', $arg, $m)) {
+        $openid = $m[1];
+    }
+}
+
+$ts = date('Y-m-d H:i:s');
+echo "[$ts] weeklyUserQuotaReset 开始（weeklyset=$weeklyset）\n";
+
+if ($openid) {
+    $stmt = $pdo->prepare("UPDATE fy_users SET available = :weeklyset WHERE openid = :openid AND role = 'user' AND available != :weeklyset");
+    $stmt->execute([':weeklyset' => $weeklyset, ':openid' => $openid]);
+    echo "[$ts] 单用户 openid=$openid 重置完成，affected={$stmt->rowCount()}\n";
 } else {
     $stmt = $pdo->prepare("UPDATE fy_users SET available = :weeklyset WHERE role = 'user' AND available != :weeklyset");
-    $stmt->execute([
-        ':weeklyset' => $weeklyset
-    ]);
-
-    echo json_encode([
-        'success' => true,
-        'message' => "All user's weeklyquota was set to: $weeklyset"
-    ]);
+    $stmt->execute([':weeklyset' => $weeklyset]);
+    echo "[$ts] 全用户重置完成，affected={$stmt->rowCount()}\n";
 }
-?>

@@ -1,21 +1,25 @@
 <?php
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Max-Age: 86400");
+/**
+ * 清理过期未完成注册的 pending 用户（regtime 在 24h 前）。
+ *
+ * 仅允许 CLI 调用。
+ * 1Panel 计划任务（Shell 脚本，每日执行）：
+ *   php /opt/1panel/apps/openresty/openresty/www/sites/focapi.feiyang.ac.cn/index/public/crons/dailyClearUnregisterUser.php
+ */
 
-include('../../db.php');
-$config = include('../../config.php');
-
-$actioncode = $_GET['token'] ?? null;
-if ($actioncode !== $config['info']['actioncode']) {
-    echo json_encode([
-        'success' => false,
-        'message' => "Bad adtion code"
-    ]);
-    exit;
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    echo "This script is CLI-only.\n";
+    exit(1);
 }
+
+chdir(__DIR__);
+
+require_once __DIR__ . '/../../db.php';
+$config = include __DIR__ . '/../../config.php';
+
+$ts = date('Y-m-d H:i:s');
+echo "[$ts] dailyClearUnregisterUser 开始\n";
 
 $selectSql = "SELECT id, openid, phone FROM fy_users WHERE phone <> '' AND status = :status AND regtime <= DATE_SUB(NOW(), INTERVAL 1 DAY)";
 $selectStmt = $pdo->prepare($selectSql);
@@ -23,8 +27,8 @@ $selectStmt->execute([':status' => 'pending']);
 $targets = $selectStmt->fetchAll(PDO::FETCH_ASSOC);
 
 if (empty($targets)) {
-    echo json_encode(['success' => true, 'deleted' => [], 'message' => 'No stale pending users']);
-    exit;
+    echo "[$ts] 无需清理的 pending 用户\n";
+    exit(0);
 }
 
 $ids = array_column($targets, 'id');
@@ -33,8 +37,4 @@ $deleteSql = "DELETE FROM fy_users WHERE id IN ($placeholders)";
 $deleteStmt = $pdo->prepare($deleteSql);
 $deleteStmt->execute($ids);
 
-echo json_encode([
-    'success'       => true,
-    'deleted'       => $ids,
-    'deleted_count' => $deleteStmt->rowCount()
-]);
+echo "[$ts] 清理 {$deleteStmt->rowCount()} 个 pending 用户：" . implode(',', $ids) . "\n";

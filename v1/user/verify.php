@@ -15,8 +15,16 @@ include('../../utils/token.php');
 
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
-$phone = $data['phone'];
-$verification_code = $data['code'];
+$phone = $data['phone'] ?? '';
+$verification_code = $data['code'] ?? '';
+
+if ($phone === '' || $verification_code === '') {
+    echo json_encode([
+        'success' => false,
+        'status' => 'invalid_params'
+    ]);
+    exit;
+}
 
 // 查询用户
 $stmt = $pdo->prepare('SELECT * FROM fy_users WHERE phone = ? AND verification_code = ?');
@@ -24,8 +32,8 @@ $stmt->execute([$phone, $verification_code]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if ($user) {
-    // 验证码正确，更新用户状态
-    $stmt = $pdo->prepare('UPDATE fy_users SET status = ? WHERE phone = ?');
+    // 验证码正确，更新用户状态并清掉一次性验证码（让验证码不可复用）
+    $stmt = $pdo->prepare('UPDATE fy_users SET status = ?, verification_code = NULL WHERE phone = ?');
     $stmt->execute(['verified', $phone]);
     echo json_encode([
         'success' => true,

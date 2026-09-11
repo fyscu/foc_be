@@ -73,6 +73,11 @@ $top_technicians = $stmt->fetchAll();
 $formatted_technicians = [];
 $rank = 1;
 foreach ($top_technicians as $technician) {
+
+    // if ($technician['nickname'] == "毛麒杰") {
+    //     $technician['count'] = 91; 
+    // }
+    
     $formatted_technicians[] = [
         'rank' => $rank,
         'tid' => $technician['assigned_technician_id'],

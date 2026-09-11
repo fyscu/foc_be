@@ -179,8 +179,9 @@ class ScreenDisplay {
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">订单号</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">客户</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">设备</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">服务类型</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">故障</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
+                                
                                 <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                             </tr>
                         </thead>
@@ -209,13 +210,16 @@ class ScreenDisplay {
                                             <div class="text-xs text-gray-400">${order.device_model || '未知型号'}</div>
                                         </div>
                                     </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <div>
+                                            <div class="font-medium">${order.service_type}</div>
+                                            <div class="text-xs text-gray-400">${order.created_at || '未知时间'}</div>
+                                        </div>
+                                    </td>
                                     <td class="px-6 py-4 text-sm text-gray-500 max-w-xs">
                                         <div class="truncate" title="${order.problem_description}">
                                             ${order.problem_description}
                                         </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        ${order.created_at}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <button onclick="app.showAssignModal('${order.id}')" 

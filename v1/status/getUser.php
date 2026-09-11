@@ -1,7 +1,4 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
@@ -24,7 +21,6 @@ include('../../utils/qiniu_url.php');
 // 获取请求参数
 $uid = isset($_GET['uid']) ? (int)$_GET['uid'] : null;
 $openid = isset($_GET['openid']) ? $_GET['openid'] : null;
-$access_token = isset($_GET['access_token']) ? $_GET['access_token'] : null;
 $phone = isset($_GET['phone']) ? $_GET['phone'] : null;
 $email = isset($_GET['email']) ? $_GET['email'] : null;
 $campus = isset($_GET['campus']) ? $_GET['campus'] : null;
@@ -33,10 +29,15 @@ $role = isset($_GET['role']) ? $_GET['role'] : null;
 $available = isset($_GET['available']) ? $_GET['available'] : null;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
-$sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'id';
+
+// ORDER BY 白名单（防 SQL 注入）
+$allowedSortFields = ['id', 'regtime', 'campus', 'role', 'available', 'last_time'];
+$sortBy = isset($_GET['sort_by']) && in_array($_GET['sort_by'], $allowedSortFields, true)
+    ? $_GET['sort_by']
+    : 'id';
 $order = isset($_GET['order']) && strtolower($_GET['order']) === 'desc' ? 'DESC' : 'ASC';
 
-$isUniqueQuery = $uid || $openid || $access_token || $phone || $email;
+$isUniqueQuery = $uid || $openid || $phone || $email;
 
 if ($userinfo['is_admin'] && $userinfo['is_lucky_admin']) {
     $query = "SELECT * FROM fy_users WHERE 1=1";
@@ -49,10 +50,6 @@ if ($userinfo['is_admin'] && $userinfo['is_lucky_admin']) {
     if ($openid) {
         $query .= " AND openid = ?";
         $params[] = $openid;
-    }
-    if ($access_token) {
-        $query .= " AND access_token = ?";
-        $params[] = $access_token;
     }
     if ($phone) {
         $query .= " AND phone = ?";
@@ -92,7 +89,7 @@ if ($userinfo['is_admin'] && $userinfo['is_lucky_admin']) {
     $userData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($userData as &$user) {
-        unset($user['verification_code'], $user['access_token'], $user['temp_phone']);
+        unset($user['verification_code'], $user['access_token'], $user['token_expiry'], $user['temp_phone']);
         if ($user['email_status'] !== "verified") {
             $user['email_status'] = "unverified";
         }
@@ -109,8 +106,6 @@ if ($userinfo['is_admin'] && $userinfo['is_lucky_admin']) {
         $userData = getUserById($uid);
     } elseif ($openid) {
         $userData = getUserByOpenid($openid);
-    } elseif ($access_token) {
-        $userData = getUserByAccessToken($access_token);
     } elseif ($phone) {
         $userData = getUserByPhone($phone);
     } elseif ($email) {
@@ -131,13 +126,13 @@ if (!$userData) {
 if (isset($userData['avatar'])) {
     // 单条处理逻辑
     $userData['avatar'] = generatePrivateLink($userData['avatar']);
-    unset($userData['verification_code'], $userData['access_token'], $userData['temp_phone']);
+    unset($userData['verification_code'], $userData['access_token'], $userData['token_expiry'], $userData['temp_phone']);
 } elseif (is_array($userData)) {
     // 多条处理逻辑
     foreach ($userData as &$user) {
         if (is_array($user)) {
             $user['avatar'] = generatePrivateLink($user['avatar']);
-            unset($user['verification_code'], $user['access_token'], $user['temp_phone']);
+            unset($user['verification_code'], $user['access_token'], $user['token_expiry'], $user['temp_phone']);
         }
     }
 }

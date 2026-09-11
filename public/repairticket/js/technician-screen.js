@@ -344,7 +344,7 @@ class TechnicianScreen {
         }
         
         // 生成技术员维修记录页面的URL
-        const repairUrl = `${window.location.origin}/technician_repair.php?id=${orderId}`;
+        const repairUrl = `${window.location.origin}/api/technician_repair.php?id=${orderId}`;
         
         // 检查QR码容器是否存在
         const qrContainer = document.getElementById('technicianQRCode');
@@ -396,7 +396,7 @@ class TechnicianScreen {
         
         // 生成QR码
         setTimeout(() => {
-            const repairUrl = `${window.location.origin}/technician_repair.php?id=${orderId}`;
+            const repairUrl = `${window.location.origin}/api/technician_repair.php?id=${orderId}`;
             new QRCode(document.getElementById('orderQRCode'), {
                 text: repairUrl,
                 width: 200,

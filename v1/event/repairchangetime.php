@@ -11,17 +11,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 
 include('../../db.php');
+include('../../utils/token.php');
+include('../../utils/headercheck.php');
 include('../../utils/hungarian.php');
 include('../../utils/json2xlsx.php');
 include('../../utils/gets.php');
-//include('../../utils/token.php');
-//include('../../utils/headercheck.php');
 
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
-$user_id = $data['uid'];
-$activity_id = $data['activity_id'];
-$free_times_json = $data['free_times'];
+// 用户改自己的时间表；admin 才允许代改他人
+$requested_uid = isset($data['uid']) ? (int)$data['uid'] : (int)$userinfo['id'];
+$user_id = $userinfo['is_admin'] ? $requested_uid : (int)$userinfo['id'];
+$activity_id = $data['activity_id'] ?? null;
+$free_times_json = $data['free_times'] ?? null;
+
+if (!$activity_id || $free_times_json === null) {
+    echo json_encode(['success' => false, 'message' => '缺少 activity_id 或 free_times']);
+    exit;
+}
 
 // 解码 JSON 数据并转换为数组
 $free_times_array = json_decode($free_times_json, true);

@@ -54,27 +54,41 @@ if ($target_user) {
     }
 
     if ($has_permission) {
+        // 字段白名单：本人可改少量画像字段；admin 可改更多
+        // 永远禁改：id / openid / access_token / token_expiry / role / verification_code / status / phone / email / temp_email / temp_phone
+        $userAllowedFields = ['campus', 'avatar', 'nickname', 'realname', 'wants', 'canDuo', 'max_concurrent'];
+        $adminExtraFields = ['available', 'last_time', 'immed', 'email_status'];
+        $allowedFields = $is_admin
+            ? array_merge($userAllowedFields, $adminExtraFields)
+            : $userAllowedFields;
+
         $updateFields = [];
         $updateValues = [];
         $changedFields = [];
 
         foreach ($data as $key => $value) {
-            if ($value !== null && $key != 'id' && array_key_exists($key, $target_user)) {
-                if ($target_user[$key] != $value) {
-                    $updateFields[] = "$key = :$key";
-                    $updateValues[":$key"] = $value;
-                    $changedFields[$key] = $value;
+            if ($value === null || $key === 'id') {
+                continue;
+            }
+            if (!in_array($key, $allowedFields, true)) {
+                continue;
+            }
+            if (!array_key_exists($key, $target_user)) {
+                continue;
+            }
+            // max_concurrent 必须为合理整数，避免技术员误传超大值
+            if ($key === 'max_concurrent') {
+                $value = (int) $value;
+                if ($value < 1 || $value > 10) {
+                    continue;
                 }
             }
+            if ($target_user[$key] != $value) {
+                $updateFields[] = "$key = :$key";
+                $updateValues[":$key"] = $value;
+                $changedFields[$key] = $value;
+            }
         }
-
-        if (isset($data['available']) && $is_admin && $target_user['openid']) {
-            $weeklyset = $data['available'] ?? $config['info']['weeklyset'];
-            $data['available'] = $weeklyset;
-            $updateFields[] = "available = :available";
-            $updateValues[':available'] = $weeklyset;
-            $changedFields['available'] = $weeklyset;
-        } // 手动设置每周限额
 
         if (count($updateFields) > 0) {
             $updateSql = "UPDATE fy_users SET " . implode(", ", $updateFields) . " WHERE id = :id";

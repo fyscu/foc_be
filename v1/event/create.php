@@ -17,40 +17,41 @@ function createEvent() {
     global $pdo;
     $json = file_get_contents('php://input');
     $data = json_decode($json, true);
-    $name = $data['name'];
-    $type = $data['type'];
-    $description = $data['description'];
-    $poster = $data['poster'];
-    $start_time = $data['start_time'];
-    $signup_start_time = $data['signup_start_time'];
-    $signup_end_time = $data['signup_end_time'];
+
+    $required = ['name', 'type', 'description', 'poster', 'start_time', 'signup_start_time', 'signup_end_time'];
+    foreach ($required as $f) {
+        if (empty($data[$f])) {
+            echo json_encode(['success' => false, 'message' => "缺少字段：$f"]);
+            return;
+        }
+    }
 
     $stmt = $pdo->prepare("INSERT INTO fy_activities (name, type, description, poster, start_time, signup_start_time, signup_end_time) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$name, $type, $description, $poster, $start_time, $signup_start_time, $signup_end_time]);
+    $stmt->execute([
+        $data['name'], $data['type'], $data['description'], $data['poster'],
+        $data['start_time'], $data['signup_start_time'], $data['signup_end_time']
+    ]);
 
     $eventId = $pdo->lastInsertId();
 
-    if($eventId){
-        echo json_encode([
-            'success' => true,
-            'eventid' => $eventId
-        ]);
+    if ($eventId) {
+        echo json_encode(['success' => true, 'eventid' => $eventId]);
     } else {
-        echo json_encode([
-            'success' => false,
-            'eventid' => ''
-        ]);
+        echo json_encode(['success' => false, 'eventid' => '']);
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $has_permission = false;
-
-    if ($userinfo['is_admin']) {
-        $has_permission = true;
-    }
-    if ($has_permission) {
-        createEvent();
-    }
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => '方法不允许']);
+    exit;
 }
+
+if (!$userinfo['is_admin']) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Permission denied']);
+    exit;
+}
+
+createEvent();
 ?>

@@ -16,8 +16,14 @@ include('../../utils/headercheck.php');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $json = file_get_contents('php://input');
     $data = json_decode($json, true);
-    $activity_id = $data['activity_id'];
-    $user_id = $data['uid'];
+    $activity_id = $data['activity_id'] ?? null;
+    // 强制使用登录态身份，禁止前端伪造 uid
+    $user_id = $userinfo['id'];
+
+    if (!$activity_id) {
+        echo json_encode(['success' => false, 'message' => '缺少 activity_id']);
+        exit;
+    }
 
     // 检查活动类型
     $stmt = $pdo->prepare("SELECT type FROM fy_activities WHERE id = ?");
