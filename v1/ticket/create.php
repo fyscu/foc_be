@@ -1,7 +1,4 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
@@ -12,6 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
+$config = include('../../config.php');
 include('../../db.php');
 include('../../utils/token.php');
 include('../../utils/headercheck.php');
@@ -35,8 +33,57 @@ if ($user['available'] <= 0) {
     exit;
 }
 
+// 单用户未完结上限：含 Pending/Repairing/UserConfirming/TechConfirming（含加急）
+$maxPerUser = (int) ($config['info']['max_pending_per_user'] ?? 1);
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM fy_workorders WHERE user_id = ? AND repair_status IN ('Pending','Repairing','UserConfirming','TechConfirming')");
+$stmt->execute([$user['id']]);
+if ((int) $stmt->fetchColumn() >= $maxPerUser) {
+    echo json_encode([
+        'success' => false,
+        'status' => 'user_pending_limit',
+        'message' => '您还有未完结的报修单，待处理完再提交新单哦～'
+    ]);
+    exit;
+}
+
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
+
+if (!is_array($data)) {
+    echo json_encode([
+        'success' => false,
+        'message' => '请求数据格式错误'
+    ]);
+    exit;
+}
+
+$campus = $data['campus'] ?? null;
+if (is_string($campus)) {
+    $campus = preg_replace('/^[\s\x{00A0}\x{3000}]+|[\s\x{00A0}\x{3000}]+$/u', '', $campus);
+}
+
+$allowedCampuses = ['江安', '望江', '华西', '线下'];
+if (!is_string($campus) || !in_array($campus, $allowedCampuses, true)) {
+    echo json_encode([
+        'success' => false,
+        'message' => '校区-campus无效'
+    ]);
+    exit;
+}
+$data['campus'] = $campus;
+
+// 每校区 Pending 上限：只算普通 Pending（urgent=0），加急单不占名额
+$maxGlobal = (int) ($config['info']['max_pending_global'] ?? 15);
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM fy_workorders WHERE campus = ? AND repair_status = 'Pending' AND urgent = 0");
+$stmt->execute([$campus]);
+if ((int) $stmt->fetchColumn() >= $maxGlobal) {
+    echo json_encode([
+        'success' => false,
+        'status' => 'global_pending_limit',
+        'message' => '当前报修排队较多，请稍后再试～'
+    ]);
+    exit;
+}
 
 if($data['image'] == ""){
     $data['image'] = "https://focapi.feiyang.ac.cn/v1/ticket/default.svg";

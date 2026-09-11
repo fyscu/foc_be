@@ -5,6 +5,12 @@
 本仓库为飞扬小程序新后端的源码仓库，若想使用该服务，请查阅文档：https://fyapidocs.wjlo.cc
 本仓库仅供原理公开和技术参考
 
+## 运维资料
+
+- [PHP 8.3 运行环境](deploy/php83/README.md)
+- [核心查询索引迁移](deploy/migrations/20260911_core_query_indexes.sql)
+- [备份与恢复策略](docs/operations/backup-strategy.md)
+
 <p align="center">
 <a href="https://github.com/wjlfish/repair4_BE/releases"><img alt="Version" src="https://img.shields.io/github/v/release/wjlfish/repair4_BE?include_prereleases&logo=github&label=Version" title="Latest Version" /></a>
 <a href="https://github.com/wjlfish/repair4_BE"><img alt="Size" src="https://img.shields.io/github/languages/code-size/wjlfish/repair4_BE?label=Size&logo=github" title="Code Size"/></a>

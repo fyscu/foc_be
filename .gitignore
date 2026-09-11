@@ -2,8 +2,16 @@
 .DS_Store
 v1/user/fy.json
 config.php
+/config.feidaxiu.php
+/.env
+/public/newrepair/config.php
+/public/newrepair/api/config.php
+/public/repairticket/api/config.php
+/public/newrepair/var/
+/logs/
 /utils/awssdk
 /utils/PHPExcel
 /utils/PHPExcel
 /utils/phpqrcode
 /utils
+*.local.php

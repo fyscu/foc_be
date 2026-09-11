@@ -6,7 +6,10 @@ return [
         'adminreg' => false,
         'weeklyset' => 5,
         'ticketcooldown' => false,
-        'ticketcooldowndays' => 1
+        'ticketcooldowndays' => 1,
+        'max_pending_global' => 15,
+        'max_pending_per_user' => 1,
+        'assign_lookback_hours' => 72
     ],
     'token' => [
         'salt' => '会长爱玩原神'
