@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS fy_users (
  canDuo TINYINT, INDEX idx_users_openid (openid), INDEX idx_users_token (access_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS fy_workorders (
- id BIGINT PRIMARY KEY, user_id INT NOT NULL, user_nick VARCHAR(255), create_time DATETIME,
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, user_nick VARCHAR(255), create_time DATETIME,
  machine_purchase_date DATE NOT NULL, user_phone VARCHAR(20) NOT NULL,
  device_type VARCHAR(50) NOT NULL, model VARCHAR(255),
  warranty_status ENUM('under','expired','unknown'), computer_brand VARCHAR(50) NOT NULL,
@@ -23,7 +23,12 @@ CREATE TABLE IF NOT EXISTS fy_workorders (
  order_hash VARCHAR(255), transcode INT, refused_times INT,
  archived TINYINT(1) NOT NULL DEFAULT 0, archived_at DATETIME,
  urgent TINYINT(1) NOT NULL DEFAULT 0, urgent_at DATETIME,
+ restored_from BIGINT NULL,
  INDEX idx_workorders_assignee_status (assigned_technician_id,repair_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS fy_confs (
+ id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(191) NOT NULL,
+ info VARCHAR(255), data VARCHAR(255)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS fy_transfer_record (
  id INT AUTO_INCREMENT PRIMARY KEY, ticketid VARCHAR(20), type VARCHAR(255) NOT NULL,

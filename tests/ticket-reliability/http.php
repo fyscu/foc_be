@@ -7,9 +7,10 @@ $testWebConfig=require $webroot.'/config.php';
 if(($testWebConfig['db']['dbname']??'') !== $pdo->query('SELECT DATABASE()')->fetchColumn()) {
     throw new RuntimeException('Refusing HTTP writes: candidate config must select exactly the guarded disposable test schema.');
 }
-foreach(['give','set','complete'] as $action) {
+foreach(['give','set','complete','create','restore_archive'] as $action) {
     if(!is_file($webroot.'/v1/ticket/'.$action.'.php')) throw new RuntimeException('Actual endpoint missing: '.$action);
 }
+if(!is_file($webroot.'/v1/status/getTicket.php')) throw new RuntimeException('Actual endpoint missing: status/getTicket');
 $port=(int)(getenv('FOC_TEST_HTTP_PORT') ?: 0);
 if(!$port) {
     $listener=stream_socket_server('tcp://127.0.0.1:0',$errno,$errstr);
@@ -19,7 +20,7 @@ if(!$port) {
 }
 $address='127.0.0.1:'.$port;
 $pipes=[];
-$server=proc_open([PHP_BINARY,'-d','display_errors=0','-S',$address,__DIR__.'/router.php'], [
+$server=proc_open([PHP_BINARY,'-d','display_errors=0','-d','log_errors=1','-d','error_log=/dev/stderr','-S',$address,__DIR__.'/router.php'], [
     0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']
 ],$pipes);
 if(!is_resource($server)) throw new RuntimeException('Unable to start isolated PHP HTTP server');
@@ -27,8 +28,8 @@ fclose($pipes[0]);
 stream_set_blocking($pipes[1],false);stream_set_blocking($pipes[2],false);
 $httpBase='http://'.$address;
 
-function httpRequest(string $action, $body, ?string $token, string $header='Authorization',string $method='POST'): array {
-    global $httpBase;
+function httpRequest(string $action, $body, ?string $token, string $header='Authorization',string $method='POST',array $query=[]): array {
+    global $httpBase,$pipes;
     $headers=['Content-Type: application/json'];
     if($token!==null) $headers[]=$header.': Bearer '.$token;
     $context=stream_context_create(['http'=>[
@@ -36,8 +37,11 @@ function httpRequest(string $action, $body, ?string $token, string $header='Auth
         'content'=>is_string($body)?$body:json_encode($body,JSON_THROW_ON_ERROR),
         'ignore_errors'=>true,'timeout'=>10,
     ]]);
-    $path=$action==='admin/setTicket'?'/v1/admin/setTicket.php':'/v1/ticket/'.$action;
-    $result=file_get_contents($httpBase.$path,false,$context);
+    if($action==='admin/setTicket') $path='/v1/admin/setTicket.php';
+    elseif($action==='status/getTicket') $path='/v1/status/getTicket.php';
+    else $path='/v1/ticket/'.$action;
+    $url=$httpBase.$path.($query?'?'.http_build_query($query):'');
+    $result=file_get_contents($url,false,$context);
     if($result===false) throw new RuntimeException('HTTP request failed');
     $status=0;
     foreach($http_response_header??[] as $line) {
@@ -45,9 +49,21 @@ function httpRequest(string $action, $body, ?string $token, string $header='Auth
     }
     $data=json_decode($result,true);
     if($method!=='OPTIONS' && !is_array($data)) {
-        throw new RuntimeException('Endpoint did not return clean JSON: '.substr($result,0,300));
+        $serverError=is_resource($pipes[2])?stream_get_contents($pipes[2]):'';
+        throw new RuntimeException('Endpoint did not return clean JSON: '.substr($result,0,300).' server='.substr($serverError,0,1000));
     }
     return ['status'=>$status,'json'=>$data,'raw'=>$result];
+}
+
+function validCreatePayload(): array {
+    return [
+        'uid'=>'10','phone'=>'10000000000','purchase_date'=>'2020-01-01',
+        'device_type'=>'computer','brand'=>'Fixture brand',
+        'description'=>'Synthetic create endpoint test',
+        'image'=>'https://focapp.feiyang.ac.cn/public/ticketdefault.svg',
+        'fault_type'=>'fixture','qq'=>'10000','campus'=>'江安','DuoCampus'=>0,
+        'warranty_status'=>'unknown','model'=>'Fixture model','user_nick'=>'Fixture customer',
+    ];
 }
 $cases=[];
 $id=20269991001;
@@ -157,6 +173,91 @@ $cases['actual_http_request_size_and_method_limits']=function()use($pdo,$id) {
     eq(413,httpRequest('set',['tid'=>$id,'repair_description'=>str_repeat('x',131073)],$token)['status'],'oversized request rejected');
     eq(405,httpRequest('complete','',$token,'Authorization','GET')['status'],'GET cannot mutate');
     eq('Repairing',row($pdo,'fy_workorders',$id)['repair_status'],'size/method errors do not change ticket');
+};
+$cases['actual_http_create_requires_explicit_global_flag']=function()use($pdo) {
+    $token=hash('sha256','fixture-legacy-10');
+    $created=httpRequest('create',validCreatePayload(),$token);
+    eq(200,$created['status'],'enabled repair creation HTTP status');
+    accepted($created['json'],'explicit Global_Flag=1 permits creation');
+    ok(is_string($created['json']['orderid']??null),'created order id is a string');
+    eq(1,(int)$pdo->query('SELECT COUNT(*) FROM fy_workorders')->fetchColumn(),'enabled request creates one order');
+};
+$cases['actual_http_create_fails_closed_for_disabled_or_indeterminate_flag']=function()use($pdo) {
+    $token=hash('sha256','fixture-legacy-10');
+    $states=[
+        'disabled'=>function()use($pdo){$pdo->exec("UPDATE fy_confs SET data='0' WHERE name='Global_Flag'");},
+        'malformed'=>function()use($pdo){$pdo->exec("UPDATE fy_confs SET data='true' WHERE name='Global_Flag'");},
+        'missing'=>function()use($pdo){$pdo->exec("DELETE FROM fy_confs WHERE name='Global_Flag'");},
+        'duplicate'=>function()use($pdo){$pdo->exec("INSERT INTO fy_confs(name,info,data) VALUES ('Global_Flag','duplicate','1'),('Global_Flag','duplicate','1')");},
+    ];
+    foreach($states as $label=>$arrange) {
+        $pdo->exec("DELETE FROM fy_confs WHERE name='Global_Flag'");
+        if($label!=='missing') $pdo->exec("INSERT INTO fy_confs(name,info,data) VALUES ('Global_Flag','test','1')");
+        $arrange();
+        $before=(int)$pdo->query('SELECT available FROM fy_users WHERE id=10')->fetchColumn();
+        $result=httpRequest('create',validCreatePayload(),$token);
+        eq(503,$result['status'],'fail-closed HTTP status '.$label);
+        rejected($result['json'],'creation rejected '.$label);
+        eq('repair_paused',$result['json']['status']??null,'stable paused status '.$label);
+        eq(0,(int)$pdo->query('SELECT COUNT(*) FROM fy_workorders')->fetchColumn(),'no order created '.$label);
+        eq($before,(int)$pdo->query('SELECT available FROM fy_users WHERE id=10')->fetchColumn(),'quota unchanged '.$label);
+    }
+};
+$cases['actual_http_restore_preserves_ids_above_javascript_safe_integer']=function()use($pdo) {
+    $archiveId=9007199254740993;
+    ticket($pdo,$archiveId,'Canceled',null,10,['archived'=>1,'restored_from'=>null]);
+    $token=hash('sha256','fixture-legacy-10');
+    $restored=httpRequest('restore_archive',['archive_id'=>(string)$archiveId],$token);
+    eq(200,$restored['status'],'restore HTTP status');
+    accepted($restored['json'],'large archive id restored');
+    $newId=$restored['json']['orderid']??null;
+    eq('9007199254740994',$newId,'generated id remains lossless JSON string');
+    ok(is_string($newId),'generated id JSON type');
+    eq((string)$archiveId,(string)row($pdo,'fy_workorders',(int)$newId)['restored_from'],'new order links to exact archive id');
+    eq($newId,(string)row($pdo,'fy_workorders',$archiveId)['restored_from'],'archive links to exact new id');
+    $listed=httpRequest('status/getTicket','',$token,'Authorization','GET',['orderid'=>(string)$archiveId]);
+    eq(200,$listed['status'],'getTicket HTTP status');
+    accepted($listed['json'],'getTicket response');
+    $item=$listed['json']['data'][0]??[];
+    eq((string)$archiveId,$item['id']??null,'ticket id remains a JSON string');
+    eq($newId,$item['restored_from']??null,'restored_from remains a JSON string');
+    ok(is_string($item['restored_from']??null),'restored_from JSON type');
+};
+$cases['actual_http_restore_rejects_malformed_or_overflow_ids_without_aliasing']=function()use($pdo) {
+    $archiveId=9007199254740993;
+    ticket($pdo,$archiveId,'Canceled',null,10,['archived'=>1,'restored_from'=>null]);
+    $token=hash('sha256','fixture-legacy-10');
+    foreach(['9007199254740993junk','9.007199254740993e15','-9007199254740993','9223372036854775808',0,1.5,[]]as$bad) {
+        $result=httpRequest('restore_archive',['archive_id'=>$bad],$token);
+        eq(400,$result['status'],'invalid archive id HTTP status');
+        rejected($result['json'],'invalid archive id rejected');
+        eq('invalid_params',$result['json']['status']??null,'invalid archive id status');
+    }
+    eq(1,(int)$pdo->query('SELECT COUNT(*) FROM fy_workorders')->fetchColumn(),'invalid ids create no order');
+    eq(null,row($pdo,'fy_workorders',$archiveId)['restored_from'],'invalid ids do not mark archive');
+};
+$cases['actual_http_restore_obeys_global_flag_fail_closed']=function()use($pdo) {
+    $archiveId=9007199254740993;
+    ticket($pdo,$archiveId,'Canceled',null,10,['archived'=>1,'restored_from'=>null]);
+    $states=[
+        'disabled'=>function()use($pdo){$pdo->exec("UPDATE fy_confs SET data='0' WHERE name='Global_Flag'");},
+        'malformed'=>function()use($pdo){$pdo->exec("UPDATE fy_confs SET data='true' WHERE name='Global_Flag'");},
+        'missing'=>function()use($pdo){$pdo->exec("DELETE FROM fy_confs WHERE name='Global_Flag'");},
+        'duplicate'=>function()use($pdo){$pdo->exec("INSERT INTO fy_confs(name,info,data) VALUES ('Global_Flag','duplicate','1'),('Global_Flag','duplicate','1')");},
+    ];
+    foreach($states as $label=>$arrange) {
+        $pdo->exec("DELETE FROM fy_confs WHERE name='Global_Flag'");
+        if($label!=='missing') $pdo->exec("INSERT INTO fy_confs(name,info,data) VALUES ('Global_Flag','test','1')");
+        $arrange();
+        $before=(int)$pdo->query('SELECT available FROM fy_users WHERE id=10')->fetchColumn();
+        $result=httpRequest('restore_archive',['archive_id'=>(string)$archiveId],hash('sha256','fixture-legacy-10'));
+        eq(503,$result['status'],'restore paused HTTP status '.$label);
+        rejected($result['json'],'restore rejected '.$label);
+        eq('repair_paused',$result['json']['status']??null,'restore stable paused status '.$label);
+        eq(1,(int)$pdo->query('SELECT COUNT(*) FROM fy_workorders')->fetchColumn(),'paused restore creates no order '.$label);
+        eq(null,row($pdo,'fy_workorders',$archiveId)['restored_from'],'paused restore does not mark archive '.$label);
+        eq($before,(int)$pdo->query('SELECT available FROM fy_users WHERE id=10')->fetchColumn(),'paused restore preserves quota '.$label);
+    }
 };
 $passed=0;$total=count($cases);
 try{

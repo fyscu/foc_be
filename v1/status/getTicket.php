@@ -125,9 +125,6 @@ foreach ($workorders as &$workorder) {
     // 64-bit identifiers lossless and prevent strict-comparison failures.
     $workorder['id'] = (string) $workorder['id'];
     $workorder['user_id'] = (string) $workorder['user_id'];
-    if (isset($workorder['restored_from'])) {
-        $workorder['restored_from'] = (string) $workorder['restored_from'];
-    }
     if (isset($workorder['transcode'])) {
         $workorder['transcode'] = str_pad((string) $workorder['transcode'], 6, '0', STR_PAD_LEFT);
     }
@@ -159,7 +156,9 @@ foreach ($workorders as &$workorder) {
     $workorder['archived'] = (int) ($workorder['archived'] ?? 0);
     $workorder['urgent'] = (int) ($workorder['urgent'] ?? 0);
     // restored_from 在存档单上反向指向新加急单（可用于"已恢复"判定）；在加急单上指向源存档单
-    $workorder['restored_from'] = isset($workorder['restored_from']) ? (int) $workorder['restored_from'] : null;
+    $workorder['restored_from'] = isset($workorder['restored_from'])
+        ? (string) $workorder['restored_from']
+        : null;
 }
 
 echo json_encode([

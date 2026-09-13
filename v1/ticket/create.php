@@ -25,6 +25,32 @@ if ($user['role'] !== 'user') {
     exit;
 }
 
+function rejectPausedRepairCreation() {
+    http_response_code(503);
+    echo json_encode([
+        'success' => false,
+        'status' => 'repair_paused',
+        'message' => '当前暂停报修，请稍后再试',
+    ]);
+    exit;
+}
+
+function repairCreationIsEnabled(PDO $pdo) {
+    try {
+        $stmt = $pdo->prepare("SELECT data FROM fy_confs WHERE name = ? LIMIT 2");
+        $stmt->execute(['Global_Flag']);
+        $values = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable $e) {
+        return false;
+    }
+
+    return count($values) === 1 && trim((string) $values[0]) === '1';
+}
+
+if (!repairCreationIsEnabled($pdo)) {
+    rejectPausedRepairCreation();
+}
+
 if ($user['available'] <= 0) {
     echo json_encode([
         'success' => false,

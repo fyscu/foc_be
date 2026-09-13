@@ -83,6 +83,7 @@ function fixture(PDO $pdo): void {
     $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
     foreach (testTables($pdo) as $table) $pdo->exec('TRUNCATE TABLE ' . $table);
     $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+    $pdo->exec("INSERT INTO fy_confs (name,info,data) VALUES ('Global_Flag','Global repair switch','1')");
     $users = [
         [10,'user',2], [11,'user',2], [20,'technician',1],
         [30,'technician',1], [40,'admin',1], [50,'user',2],

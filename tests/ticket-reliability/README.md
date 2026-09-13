@@ -18,7 +18,7 @@ Required PHP modules: PDO + pdo_mysql. Concurrent tests and the HTTP suite use p
 
 Only the exact database name foc_reliability_test or foc_reliability_test_<suffix> is allowed. The harness checks SELECT DATABASE() and refuses unexpected table names. It truncates fixture tables between tests. The database must be in the independently created throwaway MySQL container, not the production MySQL container.
 
-The isolated HTTP webroot must contain utils/ticket_actions.php, utils/ticket_http.php, utils/token.php, v1/ticket/{give,set,complete}.php, v1/admin/setTicket.php, and a synthetic config.php. The latter returns db.host/db.dbname/db.username/db.password and info.weeklyset=5. The HTTP wrapper uses that config to connect to the same isolated schema.
+The isolated HTTP webroot must contain utils/ticket_actions.php, utils/ticket_http.php, utils/token.php, the dependencies used by getTicket, v1/ticket/{give,set,complete,create,restore_archive}.php, v1/status/getTicket.php, v1/admin/setTicket.php, and a synthetic config.php. The latter returns db.host/db.dbname/db.username/db.password and info.weeklyset=5. The HTTP wrapper uses that config to connect to the same isolated schema.
 
 ## Run order
 
@@ -31,4 +31,4 @@ The isolated HTTP webroot must contain utils/ticket_actions.php, utils/ticket_ht
 
 The run.php suite covers code/int normalization, assignment/transfer, safe retry receipts, optional request_id for delayed static-hash retries and explicit subsequent claims, competing claimants, authorization, terminal/archived state protection, capacity calculation, concurrent quota refunds, two-party confirmation (technician submits UserConfirming; customer submits TechConfirming), editable fields, admin reassignment, invalid types/lengths, three token stores, and notification persistence fault rollback.
 
-The HTTP suite covers all three token stores through actual give/edit/complete endpoints, header case independence, missing/expired tokens, invalid JSON, request IDs, unauthenticated preflight, the admin id parameter contract, clean JSON on database failure, and method/body-size boundaries.
+The HTTP suite covers all three token stores through actual give/edit/complete endpoints, header case independence, missing/expired tokens, invalid JSON, request IDs, unauthenticated preflight, the admin id parameter contract, clean JSON on database failure, and method/body-size boundaries. It also verifies that create and archive restore fail closed unless the unique Global_Flag is exactly 1, and exercises lossless restore/getTicket identifiers above JavaScript's safe-integer limit.

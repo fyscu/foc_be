@@ -40,11 +40,59 @@ if ($user['role'] !== 'user') {
     exit;
 }
 
+function rejectPausedRepairCreation() {
+    http_response_code(503);
+    echo json_encode([
+        'success' => false,
+        'status' => 'repair_paused',
+        'message' => '当前暂停报修，请稍后再试',
+    ]);
+    exit;
+}
+
+function repairCreationIsEnabled(PDO $pdo) {
+    try {
+        $stmt = $pdo->prepare("SELECT data FROM fy_confs WHERE name = ? LIMIT 2");
+        $stmt->execute(['Global_Flag']);
+        $values = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable $e) {
+        return false;
+    }
+
+    return count($values) === 1 && trim((string) $values[0]) === '1';
+}
+
+function archiveTicketId($value) {
+    if (!is_int($value) && !is_string($value)) {
+        return null;
+    }
+
+    $id = (string) $value;
+    if (!preg_match('/^[0-9]+$/D', $id)) {
+        return null;
+    }
+
+    $id = ltrim($id, '0');
+    if ($id === '' || strlen($id) > 19
+        || (strlen($id) === 19 && strcmp($id, '9223372036854775807') > 0)) {
+        return null;
+    }
+
+    return $id;
+}
+
+if (!repairCreationIsEnabled($pdo)) {
+    rejectPausedRepairCreation();
+}
+
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
-$archiveId = isset($data['archive_id']) ? (int) $data['archive_id'] : 0;
+$archiveId = is_array($data) && array_key_exists('archive_id', $data)
+    ? archiveTicketId($data['archive_id'])
+    : null;
 
-if (!$archiveId) {
+if ($archiveId === null) {
+    http_response_code(400);
     echo json_encode(['success' => false, 'status' => 'invalid_params', 'message' => '缺少 archive_id']);
     exit;
 }
@@ -118,7 +166,7 @@ try {
         $tvcode, $archive['user_nick'], $archive['model'],
         $now, $archive['id'],
     ]);
-    $newId = (int) $pdo->lastInsertId();
+    $newId = (string) $pdo->lastInsertId();
 
     // 反向标记存档单，作为"已恢复"锁
     $stmt = $pdo->prepare("UPDATE fy_workorders SET restored_from = ? WHERE id = ?");
@@ -132,12 +180,13 @@ try {
 
     echo json_encode([
         'success' => true,
-        'orderid' => $newId,
+        'orderid' => (string) $newId,
         'urgent' => true,
         'message' => '已恢复为加急订单',
     ]);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
+    error_log('[restore_archive] ' . get_class($e) . ': ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => '服务器错误']);
 }
