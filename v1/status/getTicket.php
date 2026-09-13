@@ -121,6 +121,16 @@ $stmt->execute($params);
 $workorders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 foreach ($workorders as &$workorder) {
+    // Route parameters are strings in browsers and mini-program pages. Keep
+    // 64-bit identifiers lossless and prevent strict-comparison failures.
+    $workorder['id'] = (string) $workorder['id'];
+    $workorder['user_id'] = (string) $workorder['user_id'];
+    if (isset($workorder['restored_from'])) {
+        $workorder['restored_from'] = (string) $workorder['restored_from'];
+    }
+    if (isset($workorder['transcode'])) {
+        $workorder['transcode'] = str_pad((string) $workorder['transcode'], 6, '0', STR_PAD_LEFT);
+    }
     $workorderId = $workorder['id'];
     $workorderHash = $workorder['order_hash'];
     $workorder['assigned_technician_nickname'] = '';
