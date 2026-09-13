@@ -1,13 +1,17 @@
 <?php
-// 完成工单代码
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+ini_set('log_errors', '1');
+error_reporting(E_ALL);
+
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Max-Age: 86400");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0); // 处理 OPTIONS 预检请求
+    exit(0);
 }
 
 $config = include('../../config.php');
@@ -18,62 +22,121 @@ include('../../utils/token.php');
 include('../../utils/headercheck.php');
 include('../../utils/gets.php');
 
-$json = file_get_contents('php://input');
-$data = json_decode($json, true);
-$workOrderId = isset($data['order_id']) ? $data['order_id'] : null;
+$data = json_decode(file_get_contents('php://input'), true);
+$workOrderId = is_array($data) ? (int)($data['order_id'] ?? 0) : 0;
+
+if ($workOrderId <= 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'status' => 'invalid request']);
+    exit;
+}
+
+$technicianId = 0;
+$userId = 0;
+$statusChanged = false;
 
 try {
-    // 验证 Token 并获取用户信息
-    $authinfo = getUserByaccesstoken($token);
+    $authinfo = getUserByAccessToken($token);
+    if (!is_array($authinfo) || !isset($authinfo['id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'status' => 'invalid token']);
+        exit;
+    }
 
-    // 获取该工单对应的技术员和用户信息
-    $stmt = $pdo->prepare("SELECT assigned_technician_id, user_id FROM fy_workorders WHERE id = ?");
+    $pdo->beginTransaction();
+
+    $stmt = $pdo->prepare(
+        "SELECT assigned_technician_id, user_id, repair_status " .
+        "FROM fy_workorders WHERE id = ? FOR UPDATE"
+    );
     $stmt->execute([$workOrderId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$row) {
-        // 工单不存在
+        $pdo->rollBack();
         echo json_encode(['success' => false, 'status' => 'ticket not found']);
         exit;
     }
 
-    $technicianId = $row['assigned_technician_id'];
-    $userId = $row['user_id'];
+    $technicianId = (int)($row['assigned_technician_id'] ?? 0);
+    $userId = (int)$row['user_id'];
+    $actorId = (int)$authinfo['id'];
 
-    // 检查是否是技术员或用户本人
-    if ($authinfo['id'] !== $technicianId && $authinfo['id'] !== $userId) {
+    if ($actorId !== $technicianId && $actorId !== $userId) {
+        $pdo->rollBack();
         echo json_encode(['success' => false, 'status' => 'Permission denied']);
         exit;
     }
 
-    // 更新工单的维修状态和完成时间
-    $stmt = $pdo->prepare("UPDATE fy_workorders SET repair_status = 'Done', completion_time = NOW() WHERE id = ?");
-    $stmt->execute([$workOrderId]);
+    if ($row['repair_status'] !== 'Done') {
+        $stmt = $pdo->prepare(
+            "UPDATE fy_workorders " .
+            "SET repair_status = 'Done', completion_time = NOW() WHERE id = ?"
+        );
+        $stmt->execute([$workOrderId]);
+        $statusChanged = true;
 
-    // 更新技术员的最后维修时间（last_time）
-    $stmt = $pdo->prepare("UPDATE fy_users SET available = 1, last_time = NOW() WHERE id = ?");
-    $stmt->execute([$technicianId]);
+        if ($technicianId > 0) {
+            $stmt = $pdo->prepare(
+                "UPDATE fy_users SET available = 1, last_time = NOW() WHERE id = ?"
+            );
+            $stmt->execute([$technicianId]);
+        }
+    }
 
-    // 获取用户信息
-    $user = getUserById($userId);
-
-    // 发送通知
-    $config = include('../../config.php');
-    $notification = new Email($config);
-    $sms = new Sms($config);
-    $templateKey = 'completion'; // 选择模板
-    $phoneNumber = $user['phone']; // 接收短信的手机号
-
-    // 发送短信和邮件
-    $sms->sendSms($templateKey, $phoneNumber, []);
-    $notification->sendEmail($user['email'], "报修工单已完成", "您的报修工单 单号：$workOrderId 已由技术员维修完成，请及时取回");
-
-    // 返回成功消息
-    echo json_encode(['success' => true, 'status' => 'ticket completed']);
-} catch (PDOException $e) {
-    // 更新失败时返回错误消息
-    header('HTTP/1.1 500 Internal Server Error');
+    $pdo->commit();
+} catch (Throwable $e) {
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    error_log(
+        '[ticket.complete] order=' . $workOrderId . ' database failure: ' .
+        get_class($e) . ': ' . $e->getMessage()
+    );
+    http_response_code(500);
     echo json_encode(['success' => false, 'status' => 'unknown_error']);
-    exit();
+    exit;
 }
-?>
+
+echo json_encode(['success' => true, 'status' => 'ticket completed']);
+
+if (!$statusChanged) {
+    exit;
+}
+
+if (function_exists('fastcgi_finish_request')) {
+    fastcgi_finish_request();
+}
+ignore_user_abort(true);
+
+try {
+    $user = getUserById($userId);
+    if (!$user) {
+        error_log('[ticket.complete] order=' . $workOrderId . ' notification skipped: user missing');
+        exit;
+    }
+
+    if (!empty($user['phone'])) {
+        $sms = new Sms($config);
+        $smsResult = $sms->sendSms('completion', $user['phone'], []);
+        if (!is_array($smsResult) || isset($smsResult['error'])) {
+            error_log('[ticket.complete] order=' . $workOrderId . ' SMS delivery failed');
+        }
+    }
+
+    if (!empty($user['email'])) {
+        $notification = new Email($config);
+        if (!$notification->sendEmail(
+            $user['email'],
+            '报修工单已完成',
+            "您的报修工单 单号：$workOrderId 已由技术员维修完成，请及时取回"
+        )) {
+            error_log('[ticket.complete] order=' . $workOrderId . ' email delivery failed');
+        }
+    }
+} catch (Throwable $e) {
+    error_log(
+        '[ticket.complete] order=' . $workOrderId . ' notification failure: ' .
+        get_class($e) . ': ' . $e->getMessage()
+    );
+}

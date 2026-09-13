@@ -1,160 +1,202 @@
 <?php
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+ini_set('log_errors', '1');
+error_reporting(E_ALL);
+
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); 
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Max-Age: 86400");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0); // 提前结束响应，处理 OPTIONS 预检请求
+    exit(0);
 }
 
 $config = include('../../config.php');
+$weeklyset = max(1, (int)($config['info']['weeklyset'] ?? 5));
 include('../../db.php');
 include('../../utils/token.php');
 include('../../utils/headercheck.php');
 require '../../utils/sms.php';
 include('../../utils/gets.php');
 
-$json = file_get_contents('php://input');
-$data = json_decode($json, true);
+$data = json_decode(file_get_contents('php://input'), true);
+$ticketId = is_array($data) ? (int)($data['tid'] ?? 0) : 0;
 
-$ticket_id = $data['tid'];
-$ticket = getTicketById($ticket_id);
+if ($ticketId <= 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid ticket id', 'changedFields' => []]);
+    exit;
+}
 
-$response = [];
+$ticket = getTicketById($ticketId);
+if (!$ticket) {
+    echo json_encode(['success' => false, 'message' => 'Ticket not found', 'changedFields' => []]);
+    exit;
+}
 
-if ($ticket) {
-    $has_permission = false;
+$actorId = (int)($userinfo['id'] ?? 0);
+$userId = (int)$ticket['user_id'];
+$technicianId = (int)($ticket['assigned_technician_id'] ?? 0);
+$hasPermission = !empty($userinfo['is_admin'])
+    || $actorId === $userId
+    || (($userinfo['role'] ?? '') === 'technician' && $actorId === $technicianId);
 
-    // 权限检查
-    if ($userinfo['is_admin']) {
-        $has_permission = true;
-    } elseif ($userinfo['id'] === $ticket['user_id']) {
-        $has_permission = true;
-    } elseif ($userinfo['role'] === 'technician' && $userinfo['id'] === $ticket['assigned_technician_id']) {
-        $has_permission = true;
+if (!$hasPermission) {
+    echo json_encode(['success' => false, 'message' => 'Permission denied', 'changedFields' => []]);
+    exit;
+}
+
+$userAllowedFields = ['repair_status', 'complete_image_url'];
+$adminExtraFields = [
+    'user_phone', 'qq_number', 'device_type', 'model', 'computer_brand',
+    'warranty_status', 'fault_type', 'campus', 'DuoCampus',
+    'repair_description', 'repair_image_url',
+    'assigned_technician_id', 'assigned_time', 'completion_time',
+    'machine_purchase_date', 'user_nick', 'refused_times'
+];
+$allowedFields = !empty($userinfo['is_admin'])
+    ? array_merge($userAllowedFields, $adminExtraFields)
+    : $userAllowedFields;
+
+$updateFields = [];
+$updateValues = [];
+$changedFields = [];
+
+foreach ($data as $key => $value) {
+    if ($value === null || $key === 'id' || !in_array($key, $allowedFields, true)) {
+        continue;
     }
+    if (!array_key_exists($key, $ticket) || $ticket[$key] == $value) {
+        continue;
+    }
+    $updateFields[] = "$key = :$key";
+    $updateValues[":$key"] = $value;
+    $changedFields[$key] = $value;
+}
 
-    if ($has_permission) {
-        // 字段白名单：按角色限制可改字段
-        // 工单本人 / 分配技术员只允许改业务状态相关字段；
-        // admin 可改更多（不含主键、关联键、防伪字段）
-        $userAllowedFields = ['repair_status', 'complete_image_url'];
-        $adminExtraFields = [
-            'user_phone', 'qq_number', 'device_type', 'model', 'computer_brand',
-            'warranty_status', 'fault_type', 'campus', 'DuoCampus',
-            'repair_description', 'repair_image_url',
-            'assigned_technician_id', 'assigned_time', 'completion_time',
-            'machine_purchase_date', 'user_nick', 'refused_times'
-        ];
-        $allowedFields = $userinfo['is_admin']
-            ? array_merge($userAllowedFields, $adminExtraFields)
-            : $userAllowedFields;
+$requestedStatus = isset($data['repair_status']) ? (string)$data['repair_status'] : null;
 
-        $updateFields = [];
-        $updateValues = [];
-        $changedFields = [];
-
-        foreach ($data as $key => $value) {
-            if ($value === null || $key === 'id') {
-                continue;
-            }
-            if (!in_array($key, $allowedFields, true)) {
-                continue; // 不在白名单的字段一律忽略
-            }
-            if (!array_key_exists($key, $ticket)) {
-                continue;
-            }
-            if ($ticket[$key] != $value) {
-                $updateFields[] = "$key = :$key";
-                $updateValues[":$key"] = $value;
-                $changedFields[$key] = $value;
-            }
-        }
-
-        // 处理特殊情况：如果工单状态为 UserConfirming 或 TechConfirming，检查是否同时点击而重复修改
-        if (isset($data['repair_status']) && in_array($data['repair_status'], ['UserConfirming', 'TechConfirming'])) {           
-            $pdo->beginTransaction(); 
-            $restmt = $pdo->prepare("SELECT repair_status FROM fy_workorders WHERE id = ? FOR UPDATE");
-            $restmt->execute([$ticket['id']]);
-            $reticket = $restmt->fetch(PDO::FETCH_ASSOC);
-            if ($reticket['repair_status'] == 'UserConfirming' && $data['repair_status'] == 'TechConfirming' || $reticket['repair_status'] == 'TechConfirming' && $data['repair_status'] == 'UserConfirming') {
-                $data['repair_status'] = 'Done';
-            }
-            $upstmt = $pdo->prepare("UPDATE fy_workorders SET repair_status = ? WHERE id = ?");
-            $upstmt->execute([$data['repair_status'], $ticket['id']]);
-            $pdo->commit();
-            $changedFields = [
-                'repair_status' => 'Done'
-            ];
-            $response = [
-                'success' => true,
-                'changedFields' => $changedFields
-            ];
-            echo json_encode($response);
+if (in_array($requestedStatus, ['UserConfirming', 'TechConfirming'], true)) {
+    try {
+        $pdo->beginTransaction();
+        $stmt = $pdo->prepare("SELECT repair_status FROM fy_workorders WHERE id = ? FOR UPDATE");
+        $stmt->execute([$ticketId]);
+        $locked = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$locked) {
+            $pdo->rollBack();
+            echo json_encode(['success' => false, 'message' => 'Ticket not found', 'changedFields' => []]);
             exit;
         }
 
-        // 处理特殊情况：如果工单状态为 Canceled 或 Closed
-        if (isset($data['repair_status']) && in_array($data['repair_status'], ['Canceled', 'Closed'])) {
-            // 检查工单是否分配了技术员
-            if (!empty($ticket['assigned_technician_id'])) {
-                // 更新 fy_users 表中的技术员 available 状态为 1
-                $technician_id = $ticket['assigned_technician_id'];
-                $updateTechnicianSql = "UPDATE fy_users SET available = 1 WHERE id = :technician_id";
-                $stmt = $pdo->prepare($updateTechnicianSql);
-                $stmt->execute([':technician_id' => $technician_id]);
-                // 找到这个技术员
-                $stmttech = $pdo->prepare("SELECT phone FROM fy_users WHERE id = ?");
-                $stmttech->execute([$technician_id]);
-                $rowtechphone = $stmttech->fetch(PDO::FETCH_ASSOC);
-
-                $sms = new Sms($config);
-                // 发送给技术员
-                $templateKey = 'beclosed';
-                $phoneNumber = $rowtechphone['phone'];
-                $templateParams = [];
-                $response = $sms->sendSms($templateKey, $phoneNumber, $templateParams);
-            }
-            // 返还用户的配额（如果本周还满着就不用再返还了）
-            $user_id = $ticket['user_id'];
-            $updateUserQuotaSql = "UPDATE fy_users SET available = available + 1 WHERE id = :user_id AND role = 'user' AND available < 5";
-            $stmtUser = $pdo->prepare($updateUserQuotaSql);
-            $stmtUser->execute([':user_id' => $user_id]);
+        $currentStatus = $locked['repair_status'];
+        $newStatus = $requestedStatus;
+        if (
+            ($currentStatus === 'UserConfirming' && $requestedStatus === 'TechConfirming')
+            || ($currentStatus === 'TechConfirming' && $requestedStatus === 'UserConfirming')
+        ) {
+            $newStatus = 'Done';
         }
 
-        if (count($updateFields) > 0) {
-            $updateSql = "UPDATE fy_workorders SET " . implode(", ", $updateFields) . " WHERE id = :id";
-            $updateValues[':id'] = $ticket_id;
+        $stmt = $pdo->prepare(
+            "UPDATE fy_workorders SET repair_status = ?, " .
+            "completion_time = CASE WHEN ? = 'Done' THEN NOW() ELSE completion_time END " .
+            "WHERE id = ?"
+        );
+        $stmt->execute([$newStatus, $newStatus, $ticketId]);
+        $pdo->commit();
 
-            $stmt = $pdo->prepare($updateSql);
-            $stmt->execute($updateValues);
-
-            $response = [
-                'success' => true,
-                'changedFields' => $changedFields
-            ];
-        } else {
-            $response = [
-                'success' => true,
-                'changedFields' => []
-            ];
+        echo json_encode(['success' => true, 'changedFields' => ['repair_status' => $newStatus]]);
+        exit;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
         }
-    } else {
-        $response = [
-            'success' => false,
-            'message' => 'Permission denied',
-            'changedFields' => []
-        ];
+        error_log('[ticket.set] ticket=' . $ticketId . ' confirmation failure: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Database error', 'changedFields' => []]);
+        exit;
     }
-} else {
-    $response = [
-        'success' => false,
-        'message' => 'Ticket not found',
-        'changedFields' => []
-    ];
 }
 
-echo json_encode($response);
-?>
+$isClosing = in_array($requestedStatus, ['Canceled', 'Closed'], true)
+    && array_key_exists('repair_status', $changedFields);
+$notificationPhone = null;
+
+try {
+    if ($isClosing) {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare(
+            "SELECT user_id, assigned_technician_id FROM fy_workorders WHERE id = ? FOR UPDATE"
+        );
+        $stmt->execute([$ticketId]);
+        $locked = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$locked) {
+            $pdo->rollBack();
+            echo json_encode(['success' => false, 'message' => 'Ticket not found', 'changedFields' => []]);
+            exit;
+        }
+
+        $userId = (int)$locked['user_id'];
+        $technicianId = (int)($locked['assigned_technician_id'] ?? 0);
+        if ($technicianId > 0) {
+            $stmt = $pdo->prepare("UPDATE fy_users SET available = 1 WHERE id = ?");
+            $stmt->execute([$technicianId]);
+            $stmt = $pdo->prepare("SELECT phone FROM fy_users WHERE id = ?");
+            $stmt->execute([$technicianId]);
+            $technician = $stmt->fetch(PDO::FETCH_ASSOC);
+            $notificationPhone = $technician['phone'] ?? null;
+        }
+
+        $stmt = $pdo->prepare(
+            "UPDATE fy_users SET available = LEAST(available + 1, ?) " .
+            "WHERE id = ? AND role = 'user'"
+        );
+        $stmt->execute([$weeklyset, $userId]);
+    }
+
+    if (count($updateFields) > 0) {
+        $updateValues[':id'] = $ticketId;
+        $stmt = $pdo->prepare(
+            "UPDATE fy_workorders SET " . implode(', ', $updateFields) . " WHERE id = :id"
+        );
+        $stmt->execute($updateValues);
+    }
+
+    if ($isClosing) {
+        $pdo->commit();
+    }
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    error_log('[ticket.set] ticket=' . $ticketId . ' update failure: ' . get_class($e) . ': ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Database error', 'changedFields' => []]);
+    exit;
+}
+
+echo json_encode(['success' => true, 'changedFields' => $changedFields]);
+
+if ($isClosing && !empty($notificationPhone)) {
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    }
+    ignore_user_abort(true);
+
+    try {
+        $sms = new Sms($config);
+        $smsResult = $sms->sendSms('beclosed', $notificationPhone, []);
+        if (!is_array($smsResult) || isset($smsResult['error'])) {
+            error_log('[ticket.set] ticket=' . $ticketId . ' close SMS delivery failed');
+        }
+    } catch (Throwable $e) {
+        error_log(
+            '[ticket.set] ticket=' . $ticketId . ' close notification failure: ' .
+            get_class($e) . ': ' . $e->getMessage()
+        );
+    }
+}
