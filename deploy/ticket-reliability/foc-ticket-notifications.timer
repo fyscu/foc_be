@@ -1,0 +1,9 @@
+[Unit]
+Description=Poll FOC ticket notification outbox
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=15s
+AccuracySec=1s
+Unit=foc-ticket-notifications.service
+[Install]
+WantedBy=timers.target

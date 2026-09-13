@@ -1,0 +1,8 @@
+[Unit]
+Description=FOC durable ticket notification delivery
+After=docker.service network-online.target
+Requires=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker exec --user 33:33 php8-0 /usr/bin/timeout 110 /usr/local/bin/php /www/sites/focapi.feiyang.ac.cn/index/cli/ticket_notifications.php
+TimeoutStartSec=125
