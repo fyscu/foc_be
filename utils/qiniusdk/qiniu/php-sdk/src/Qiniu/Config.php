@@ -19,6 +19,7 @@ final class Config
     const SMS_VERSION='v1';
 
     // Zone 空间对应的存储区域
+    public $zone;
     public $region;
     //BOOL 是否使用https域名
     public $useHTTPS;
